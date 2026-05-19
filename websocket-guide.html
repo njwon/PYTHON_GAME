@@ -1,0 +1,1464 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebSocket & 게임서버 A-Z</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600&family=JetBrains+Mono:wght@400;600&family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #111118;
+    --bg3: #1a1a24;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.15);
+    --text: #e8e8f0;
+    --text2: #9090a8;
+    --text3: #5a5a72;
+    --accent-blue: #4a9eff;
+    --accent-red: #ff4a6e;
+    --accent-amber: #ffb84a;
+    --accent-teal: #4affcc;
+    --accent-purple: #a855f7;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; font-size: 14px; line-height: 1.7; }
+
+  .page-header { border-bottom: 0.5px solid var(--border); padding: 2rem 2.5rem 1.5rem; background: var(--bg2); }
+  .page-title { font-family: 'Noto Serif KR', serif; font-size: 26px; font-weight: 600; color: var(--text); letter-spacing: -0.02em; line-height: 1.3; }
+  .page-subtitle { font-size: 13px; color: var(--text2); margin-top: 6px; font-weight: 300; }
+
+  .tabs { display: flex; gap: 0; padding: 0 2.5rem; border-bottom: 0.5px solid var(--border); background: var(--bg2); overflow-x: auto; }
+  .tab { padding: 10px 20px; font-size: 13px; font-weight: 500; color: var(--text2); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: color 0.15s, border-color 0.15s; background: none; border-top: none; border-left: none; border-right: none; font-family: inherit; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--text); border-bottom-color: var(--accent-blue); }
+
+  .main { padding: 2rem 2.5rem; max-width: 900px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .section { margin-bottom: 2.8rem; }
+  .section-label { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; color: var(--text3); text-transform: uppercase; margin-bottom: 1rem; font-family: 'JetBrains Mono', monospace; }
+
+  .hero { background: var(--bg3); border: 0.5px solid var(--border2); border-radius: 14px; padding: 1.8rem; margin-bottom: 2rem; position: relative; overflow: hidden; }
+  .hero::before { content: ''; position: absolute; top: 0; right: 0; width: 220px; height: 220px; background: radial-gradient(circle at top right, rgba(74,158,255,0.07), transparent 70%); pointer-events: none; }
+  .hero-label { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; color: var(--accent-blue); text-transform: uppercase; margin-bottom: 8px; font-family: 'JetBrains Mono', monospace; }
+  .hero-title { font-family: 'Noto Serif KR', serif; font-size: 20px; font-weight: 600; color: var(--text); margin-bottom: 10px; line-height: 1.5; }
+  .hero-desc { font-size: 13px; color: var(--text2); line-height: 1.85; }
+
+  .card { background: var(--bg3); border: 0.5px solid var(--border); border-radius: 12px; padding: 1.3rem; margin-bottom: 12px; }
+  .card-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  .card-desc { font-size: 12px; color: var(--text2); line-height: 1.75; }
+  .card-desc strong { color: var(--text); font-weight: 500; }
+
+  .card-blue { border-color: rgba(74,158,255,0.25); background: rgba(74,158,255,0.04); }
+  .card-teal { border-color: rgba(74,255,204,0.25); background: rgba(74,255,204,0.04); }
+  .card-amber { border-color: rgba(255,184,74,0.25); background: rgba(255,184,74,0.04); }
+  .card-red { border-color: rgba(255,74,110,0.25); background: rgba(255,74,110,0.04); }
+  .card-purple { border-color: rgba(168,85,247,0.25); background: rgba(168,85,247,0.04); }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+
+  .badge { display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: 0.08em; padding: 2px 9px; border-radius: 20px; font-family: 'JetBrains Mono', monospace; margin-right: 4px; }
+  .badge-blue { background: rgba(74,158,255,0.15); color: var(--accent-blue); border: 0.5px solid rgba(74,158,255,0.3); }
+  .badge-teal { background: rgba(74,255,204,0.12); color: var(--accent-teal); border: 0.5px solid rgba(74,255,204,0.3); }
+  .badge-amber { background: rgba(255,184,74,0.12); color: var(--accent-amber); border: 0.5px solid rgba(255,184,74,0.3); }
+  .badge-red { background: rgba(255,74,110,0.12); color: var(--accent-red); border: 0.5px solid rgba(255,74,110,0.3); }
+  .badge-purple { background: rgba(168,85,247,0.12); color: var(--accent-purple); border: 0.5px solid rgba(168,85,247,0.3); }
+
+  pre { background: #0d0d14; border: 0.5px solid var(--border2); border-radius: 10px; padding: 1.2rem 1.4rem; overflow-x: auto; margin: 10px 0; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.8; color: #c8d3f5; }
+  pre code { color: #c8d3f5; }
+  .c-kw { color: #89b4fa; }   /* keyword */
+  .c-fn { color: #4affcc; }   /* function */
+  .c-str { color: #a6e3a1; }  /* string */
+  .c-cm { color: #5a5a72; }   /* comment */
+  .c-num { color: #ffb84a; }  /* number */
+  .c-var { color: #cba6f7; }  /* variable */
+  .c-op { color: #ff4a6e; }   /* operator / special */
+
+  .inline-code { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: rgba(255,255,255,0.07); padding: 1px 6px; border-radius: 4px; color: var(--accent-teal); }
+
+  .flow { display: flex; flex-direction: column; gap: 0; }
+  .flow-row { display: flex; gap: 14px; }
+  .flow-left { display: flex; flex-direction: column; align-items: center; width: 64px; flex-shrink: 0; }
+  .flow-num { width: 28px; height: 28px; border-radius: 50%; border: 0.5px solid var(--border2); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--accent-blue); font-family: 'JetBrains Mono', monospace; flex-shrink: 0; background: rgba(74,158,255,0.08); }
+  .flow-line { width: 1px; background: var(--border2); flex: 1; min-height: 12px; margin: 4px 0; }
+  .flow-body { flex: 1; padding-bottom: 22px; }
+  .flow-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .flow-desc { font-size: 12px; color: var(--text2); line-height: 1.7; }
+  .flow-code { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent-amber); background: rgba(255,184,74,0.06); border: 0.5px solid rgba(255,184,74,0.2); border-radius: 6px; padding: 5px 10px; margin-top: 6px; }
+
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1.5rem; }
+  .compare-card { border-radius: 12px; padding: 1.2rem; border: 0.5px solid; }
+  .compare-http { background: rgba(255,74,110,0.04); border-color: rgba(255,74,110,0.25); }
+  .compare-ws { background: rgba(74,255,204,0.04); border-color: rgba(74,255,204,0.25); }
+  .compare-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; margin-bottom: 10px; }
+  .compare-http .compare-label { color: var(--accent-red); }
+  .compare-ws .compare-label { color: var(--accent-teal); }
+  .compare-item { font-size: 12px; color: var(--text2); margin-bottom: 6px; display: flex; gap: 8px; }
+  .compare-dot { flex-shrink: 0; margin-top: 6px; width: 4px; height: 4px; border-radius: 50%; }
+  .compare-http .compare-dot { background: var(--accent-red); }
+  .compare-ws .compare-dot { background: var(--accent-teal); }
+
+  .tip { border-left: 2px solid var(--accent-amber); padding: 10px 14px; border-radius: 0 8px 8px 0; background: rgba(255,184,74,0.05); font-size: 12px; line-height: 1.75; color: var(--text2); margin: 12px 0; }
+  .tip strong { color: var(--accent-amber); font-weight: 500; }
+
+  .warn { border-left: 2px solid var(--accent-red); padding: 10px 14px; border-radius: 0 8px 8px 0; background: rgba(255,74,110,0.05); font-size: 12px; line-height: 1.75; color: var(--text2); margin: 12px 0; }
+  .warn strong { color: var(--accent-red); font-weight: 500; }
+
+  .arch { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 1.5rem; background: var(--bg3); border-radius: 12px; border: 0.5px solid var(--border); margin-bottom: 12px; flex-wrap: wrap; }
+  .arch-box { text-align: center; }
+  .arch-icon { font-size: 22px; margin-bottom: 4px; }
+  .arch-name { font-size: 11px; font-weight: 700; color: var(--text); }
+  .arch-sub { font-size: 10px; color: var(--text3); font-family: 'JetBrains Mono', monospace; }
+  .arch-arrow { color: var(--accent-blue); font-size: 16px; font-family: 'JetBrains Mono', monospace; }
+  .arch-arrow-label { font-size: 9px; color: var(--text3); text-align: center; }
+
+  .divider { height: 0.5px; background: var(--border); margin: 1.5rem 0; }
+
+  .step-list { display: flex; flex-direction: column; gap: 8px; }
+  .step { display: flex; gap: 12px; align-items: flex-start; }
+  .step-num { width: 22px; height: 22px; border-radius: 50%; background: rgba(74,158,255,0.1); border: 0.5px solid rgba(74,158,255,0.3); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: var(--accent-blue); flex-shrink: 0; margin-top: 2px; font-family: 'JetBrains Mono', monospace; }
+  .step-text { font-size: 13px; color: var(--text2); line-height: 1.7; }
+  .step-text strong { color: var(--text); font-weight: 500; }
+
+  @media (max-width: 640px) {
+    .main { padding: 1.2rem; }
+    .page-header { padding: 1.5rem; }
+    .tabs { padding: 0 1.2rem; }
+    .two-col, .compare { grid-template-columns: 1fr; }
+    .arch { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div class="page-title">WebSocket & 게임 서버 — A to Z</div>
+  <div class="page-subtitle">처음 만드는 실시간 서버 · Node.js ws + Python websocket-client</div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="show('basics', this)">① 기초 개념</button>
+  <button class="tab" onclick="show('handshake', this)">② 연결 원리</button>
+  <button class="tab" onclick="show('server', this)">③ Node.js 서버</button>
+  <button class="tab" onclick="show('client', this)">④ Python 클라이언트</button>
+  <button class="tab" onclick="show('message', this)">⑤ 메시지 설계</button>
+  <button class="tab" onclick="show('gameserver', this)">⑥ 게임서버 구조</button>
+  <button class="tab" onclick="show('apply', this)">⑦ 이 프로젝트에 적용</button>
+  <button class="tab" onclick="show('clientskills', this)">⑧ 클라이언트 스킬</button>
+  <button class="tab" onclick="show('advanced', this)">⑨ 고급 & 디버깅</button>
+</div>
+
+<div class="main">
+
+<!-- ════════════════ ① 기초 개념 ════════════════ -->
+<div id="basics" class="panel active">
+
+  <div class="section">
+    <div class="section-label">왜 WebSocket인가</div>
+    <div class="hero">
+      <div class="hero-label">Core Concept</div>
+      <div class="hero-title">HTTP는 요청-응답, WebSocket은 전화 통화</div>
+      <div class="hero-desc">
+        HTTP는 편지를 보내고 답장을 받는 구조입니다. 한 번 주고받으면 연결이 끊깁니다.<br>
+        WebSocket은 전화를 걸어 연결이 유지된 상태에서 언제든 양방향으로 말할 수 있습니다.<br>
+        게임처럼 <strong style="color:var(--text)">실시간으로 데이터를 계속 주고받아야</strong> 할 때 WebSocket이 필요합니다.
+      </div>
+    </div>
+
+    <div class="compare">
+      <div class="compare-card compare-http">
+        <div class="compare-label">HTTP (기존 방식)</div>
+        <div class="compare-item"><div class="compare-dot"></div>클라이언트가 먼저 요청해야만 서버가 응답</div>
+        <div class="compare-item"><div class="compare-dot"></div>요청-응답 1쌍이 끝나면 연결 종료</div>
+        <div class="compare-item"><div class="compare-dot"></div>서버가 먼저 데이터를 보낼 수 없음</div>
+        <div class="compare-item"><div class="compare-dot"></div>실시간 업데이트하려면 계속 폴링(반복 요청) 해야 함</div>
+        <div class="compare-item"><div class="compare-dot"></div>헤더 오버헤드가 큼</div>
+      </div>
+      <div class="compare-card compare-ws">
+        <div class="compare-label">WebSocket (실시간)</div>
+        <div class="compare-item"><div class="compare-dot"></div>한 번 연결하면 계속 유지</div>
+        <div class="compare-item"><div class="compare-dot"></div>서버 → 클라이언트 먼저 데이터 전송 가능</div>
+        <div class="compare-item"><div class="compare-dot"></div>양방향 동시 통신</div>
+        <div class="compare-item"><div class="compare-dot"></div>헤더 없이 작은 프레임으로 데이터 전송</div>
+        <div class="compare-item"><div class="compare-dot"></div>지연시간(latency)이 매우 낮음</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">핵심 용어 정리</div>
+
+    <div class="card card-blue">
+      <div class="card-title">🔌 소켓 (Socket)</div>
+      <div class="card-desc">두 프로그램이 네트워크로 데이터를 주고받을 수 있는 <strong>연결 통로</strong>입니다. 수도관처럼 한 번 연결되면 데이터가 계속 흘러다닐 수 있습니다.</div>
+    </div>
+
+    <div class="card card-teal">
+      <div class="card-title">🌐 포트 (Port)</div>
+      <div class="card-desc">같은 컴퓨터 안에서 여러 서비스를 구분하는 <strong>번호</strong>입니다. 아파트 호수처럼 동일한 IP(건물)에서 3000번 방, 5900번 방처럼 구분합니다. WebSocket 서버는 보통 <span class="inline-code">3000</span> 또는 <span class="inline-code">8080</span>을 씁니다.</div>
+    </div>
+
+    <div class="card card-amber">
+      <div class="card-title">📦 프레임 (Frame)</div>
+      <div class="card-desc">WebSocket이 데이터를 전송하는 <strong>최소 단위</strong>입니다. 택배 박스처럼 데이터를 잘라서 프레임에 담아 보냅니다. 우리가 직접 신경 쓸 필요는 없고, 라이브러리가 자동으로 처리합니다.</div>
+    </div>
+
+    <div class="card card-purple">
+      <div class="card-title">🔄 이벤트 (Event)</div>
+      <div class="card-desc">WebSocket 프로그래밍은 이벤트 기반입니다. <strong>"연결됐을 때"</strong>, <strong>"메시지 받았을 때"</strong>, <strong>"연결 끊겼을 때"</strong>처럼 상황이 발생하면 미리 등록한 함수가 자동으로 실행됩니다.</div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">🖥️ 서버 (Server)</div>
+        <div class="card-desc">항상 켜져 있으면서 클라이언트의 연결을 기다리는 프로그램입니다. 이 프로젝트에서는 <strong>Node.js (pygame-server)</strong>가 담당합니다.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">📱 클라이언트 (Client)</div>
+        <div class="card-desc">서버에 연결을 시작하는 쪽입니다. 이 프로젝트에서는 <strong>Python 게임 (PyQt6)</strong>이 클라이언트입니다.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">이 프로젝트의 구조</div>
+    <div class="arch">
+      <div class="arch-box">
+        <div class="arch-icon">🐍</div>
+        <div class="arch-name">Python 게임</div>
+        <div class="arch-sub">PyQt6 · 클라이언트</div>
+      </div>
+      <div style="text-align:center">
+        <div class="arch-arrow">⟷</div>
+        <div class="arch-arrow-label">WebSocket<br>ws://localhost:3000</div>
+      </div>
+      <div class="arch-box">
+        <div class="arch-icon">🟢</div>
+        <div class="arch-name">Node.js 서버</div>
+        <div class="arch-sub">Express + ws · 서버</div>
+      </div>
+    </div>
+    <div class="tip"><strong>왜 Node.js를 서버로?</strong> Python PyQt6는 자체 이벤트 루프(Qt loop)가 있어서 WebSocket 루프와 충돌하기 쉽습니다. Node.js는 비동기 I/O에 최적화되어 있고 pygame-server가 이미 있으니 자연스러운 선택입니다.</div>
+  </div>
+
+</div>
+
+<!-- ════════════════ ② 연결 원리 ════════════════ -->
+<div id="handshake" class="panel">
+
+  <div class="section">
+    <div class="section-label">WebSocket 핸드셰이크</div>
+    <div class="hero">
+      <div class="hero-label">How It Works</div>
+      <div class="hero-title">처음 연결할 때만 HTTP를 씁니다</div>
+      <div class="hero-desc">WebSocket은 HTTP로 시작해서 "이제부터 WebSocket으로 바꿔서 얘기하자"고 합의합니다. 이 과정을 <strong style="color:var(--text)">핸드셰이크(Handshake)</strong>라고 합니다. 악수처럼 서로 확인하고 프로토콜을 전환합니다.</div>
+    </div>
+
+    <div class="flow">
+      <div class="flow-row">
+        <div class="flow-left">
+          <div class="flow-num">1</div>
+          <div class="flow-line"></div>
+        </div>
+        <div class="flow-body">
+          <div class="flow-title">클라이언트 → 서버: HTTP 업그레이드 요청</div>
+          <div class="flow-desc">클라이언트(Python)가 서버에 "HTTP 연결을 WebSocket으로 업그레이드해줘"라고 요청합니다.</div>
+          <div class="flow-code">GET /chat HTTP/1.1
+Upgrade: websocket
+Connection: Upgrade
+Sec-WebSocket-Key: dGhlIHNhbXBsZQ==</div>
+        </div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-left">
+          <div class="flow-num">2</div>
+          <div class="flow-line"></div>
+        </div>
+        <div class="flow-body">
+          <div class="flow-title">서버 → 클라이언트: 101 Switching Protocols</div>
+          <div class="flow-desc">서버가 "OK, WebSocket으로 바꾸자"고 승인합니다. 101은 "프로토콜 전환"을 의미합니다.</div>
+          <div class="flow-code">HTTP/1.1 101 Switching Protocols
+Upgrade: websocket
+Connection: Upgrade
+Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=</div>
+        </div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-left">
+          <div class="flow-num">3</div>
+          <div class="flow-line"></div>
+        </div>
+        <div class="flow-body">
+          <div class="flow-title">연결 수립 — 이제부터 WebSocket</div>
+          <div class="flow-desc">HTTP 연결이 WebSocket 연결로 업그레이드됩니다. 이 시점부터 양방향으로 자유롭게 메시지를 주고받을 수 있습니다.</div>
+          <div class="flow-code">🔗 연결 유지 (연결을 끊을 때까지 계속)</div>
+        </div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-left">
+          <div class="flow-num">4</div>
+        </div>
+        <div class="flow-body">
+          <div class="flow-title">메시지 교환 (무제한)</div>
+          <div class="flow-desc">서버와 클라이언트가 언제든 먼저 메시지를 보낼 수 있습니다. 연결을 명시적으로 닫을 때까지 유지됩니다.</div>
+          <div class="flow-code">client → server: {"type": "chat", "msg": "안녕"}
+server → client: {"type": "reply", "msg": "반가워"}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">연결 상태 4가지</div>
+    <div class="card card-blue">
+      <div class="card-title"><span class="badge badge-blue">0 · CONNECTING</span> 연결 중</div>
+      <div class="card-desc">핸드셰이크가 진행 중인 상태입니다. 아직 메시지를 보낼 수 없습니다.</div>
+    </div>
+    <div class="card card-teal">
+      <div class="card-title"><span class="badge badge-teal">1 · OPEN</span> 연결됨</div>
+      <div class="card-desc">연결이 수립되어 메시지를 자유롭게 주고받을 수 있는 상태입니다. 대부분의 로직은 여기서 동작합니다.</div>
+    </div>
+    <div class="card card-amber">
+      <div class="card-title"><span class="badge badge-amber">2 · CLOSING</span> 닫는 중</div>
+      <div class="card-desc">연결 종료 절차가 진행 중입니다. close 프레임을 주고받는 중입니다.</div>
+    </div>
+    <div class="card card-red">
+      <div class="card-title"><span class="badge badge-red">3 · CLOSED</span> 닫힘</div>
+      <div class="card-desc">연결이 완전히 종료된 상태입니다. 다시 통신하려면 새로 연결해야 합니다.</div>
+    </div>
+
+    <div class="tip"><strong>이벤트와 연결:</strong> on_open → OPEN 상태, on_close → CLOSED 상태, on_message → OPEN 상태에서 메시지 수신 시 호출됩니다.</div>
+  </div>
+
+</div>
+
+<!-- ════════════════ ③ Node.js 서버 ════════════════ -->
+<div id="server" class="panel">
+
+  <div class="section">
+    <div class="section-label">ws 패키지 설치</div>
+    <div class="hero">
+      <div class="hero-label">Node.js WebSocket Server</div>
+      <div class="hero-title">ws — 가장 가볍고 빠른 Node.js WebSocket 라이브러리</div>
+      <div class="hero-desc"><span class="inline-code">ws</span>는 socket.io보다 단순하고 빠릅니다. socket.io는 자동 재연결, 룸 등 기능이 많지만 무겁습니다. 지금처럼 Python 클라이언트 하나와 통신한다면 ws가 딱 맞습니다.</div>
+    </div>
+    <pre><code><span class="c-cm"># pygame-server 폴더에서 실행</span>
+npm install ws</code></pre>
+  </div>
+
+  <div class="section">
+    <div class="section-label">기본 서버 코드</div>
+    <pre><code><span class="c-kw">const</span> <span class="c-var">WebSocket</span> = <span class="c-fn">require</span>(<span class="c-str">'ws'</span>);
+
+<span class="c-cm">// WebSocket 서버 생성 — 포트 3000에서 대기</span>
+<span class="c-kw">const</span> <span class="c-var">wss</span> = <span class="c-kw">new</span> <span class="c-var">WebSocket</span>.<span class="c-fn">Server</span>({ port: <span class="c-num">3000</span> });
+
+<span class="c-var">wss</span>.<span class="c-fn">on</span>(<span class="c-str">'connection'</span>, <span class="c-kw">function</span>(<span class="c-var">ws</span>) {
+    <span class="c-cm">// 클라이언트가 연결됐을 때</span>
+    console.<span class="c-fn">log</span>(<span class="c-str">'클라이언트 연결됨'</span>);
+
+    <span class="c-var">ws</span>.<span class="c-fn">on</span>(<span class="c-str">'message'</span>, <span class="c-kw">function</span>(<span class="c-var">data</span>) {
+        <span class="c-cm">// 클라이언트로부터 메시지 받았을 때</span>
+        <span class="c-kw">const</span> <span class="c-var">msg</span> = JSON.<span class="c-fn">parse</span>(<span class="c-var">data</span>);
+        console.<span class="c-fn">log</span>(<span class="c-str">'받음:'</span>, <span class="c-var">msg</span>);
+
+        <span class="c-cm">// 클라이언트에게 응답 보내기</span>
+        <span class="c-var">ws</span>.<span class="c-fn">send</span>(JSON.<span class="c-fn">stringify</span>({ type: <span class="c-str">'reply'</span>, msg: <span class="c-str">'받았어!'</span> }));
+    });
+
+    <span class="c-var">ws</span>.<span class="c-fn">on</span>(<span class="c-str">'close'</span>, <span class="c-kw">function</span>() {
+        <span class="c-cm">// 연결이 끊겼을 때</span>
+        console.<span class="c-fn">log</span>(<span class="c-str">'클라이언트 연결 종료'</span>);
+    });
+});
+
+console.<span class="c-fn">log</span>(<span class="c-str">'서버 시작: ws://localhost:3000'</span>);</code></pre>
+
+    <div class="warn"><strong>data.toString() 필수 (ws v8+):</strong> ws 최신 버전에서 message 이벤트의 <span class="inline-code">data</span>는 Buffer 타입입니다. <span class="inline-code">JSON.parse(data)</span>는 에러가 납니다. 반드시 <span class="inline-code">JSON.parse(data.toString())</span>을 쓰세요.</div>
+    <div class="tip"><strong>ws 파라미터 이름:</strong> <span class="inline-code">wss</span>는 서버 전체(WebSocket Server), <span class="inline-code">ws</span>는 연결된 개별 클라이언트 소켓입니다. 클라이언트마다 각자의 <span class="inline-code">ws</span>가 생깁니다.</div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Express와 함께 쓰기 (기존 서버에 붙이기)</div>
+    <pre><code><span class="c-kw">const</span> <span class="c-var">express</span> = <span class="c-fn">require</span>(<span class="c-str">'express'</span>);
+<span class="c-kw">const</span> { <span class="c-var">createServer</span> } = <span class="c-fn">require</span>(<span class="c-str">'http'</span>);
+<span class="c-kw">const</span> { <span class="c-var">WebSocketServer</span> } = <span class="c-fn">require</span>(<span class="c-str">'ws'</span>);
+
+<span class="c-kw">const</span> <span class="c-var">app</span> = <span class="c-fn">express</span>();
+<span class="c-kw">const</span> <span class="c-var">server</span> = <span class="c-fn">createServer</span>(<span class="c-var">app</span>);  <span class="c-cm">// Express → HTTP 서버</span>
+<span class="c-kw">const</span> <span class="c-var">wss</span> = <span class="c-kw">new</span> <span class="c-fn">WebSocketServer</span>({ server });  <span class="c-cm">// 같은 포트에 WebSocket 추가</span>
+
+<span class="c-var">app</span>.<span class="c-fn">get</span>(<span class="c-str">'/'</span>, (<span class="c-var">req</span>, <span class="c-var">res</span>) => <span class="c-var">res</span>.<span class="c-fn">send</span>(<span class="c-str">'서버 정상'</span>));
+
+<span class="c-var">wss</span>.<span class="c-fn">on</span>(<span class="c-str">'connection'</span>, (<span class="c-var">ws</span>) => {
+    <span class="c-var">ws</span>.<span class="c-fn">on</span>(<span class="c-str">'message'</span>, (<span class="c-var">data</span>) => {
+        <span class="c-kw">const</span> <span class="c-var">msg</span> = JSON.<span class="c-fn">parse</span>(<span class="c-var">data</span>);
+        <span class="c-var">ws</span>.<span class="c-fn">send</span>(JSON.<span class="c-fn">stringify</span>({ type: <span class="c-str">'ack'</span> }));
+    });
+});
+
+<span class="c-var">server</span>.<span class="c-fn">listen</span>(<span class="c-num">3000</span>, () => console.<span class="c-fn">log</span>(<span class="c-str">'포트 3000'</span>));</code></pre>
+
+    <div class="tip"><strong>핵심:</strong> Express와 WebSocket이 같은 포트(3000)를 공유합니다. HTTP 요청은 Express가, WebSocket 연결은 wss가 처리합니다.</div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">주요 이벤트 & 메서드</div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">서버 이벤트</div>
+        <div class="card-desc">
+          <span class="inline-code">wss.on('connection', ws => {})</span><br>새 클라이언트가 연결됐을 때<br><br>
+          <span class="inline-code">ws.on('message', data => {})</span><br>메시지 수신<br><br>
+          <span class="inline-code">ws.on('close', () => {})</span><br>클라이언트 연결 종료<br><br>
+          <span class="inline-code">ws.on('error', err => {})</span><br>에러 발생
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">서버 메서드</div>
+        <div class="card-desc">
+          <span class="inline-code">ws.send(string)</span><br>특정 클라이언트에게 전송<br><br>
+          <span class="inline-code">ws.close()</span><br>연결 종료<br><br>
+          <span class="inline-code">wss.clients</span><br>연결된 모든 클라이언트 목록<br><br>
+          <span class="inline-code">ws.readyState</span><br>현재 연결 상태 (0~3)
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">브로드캐스트 — 모든 클라이언트에게 전송</div>
+    <div class="card card-purple">
+      <div class="card-title">wss.clients — 연결된 클라이언트 전체 집합</div>
+      <div class="card-desc">멀티플레이나 서버 알림처럼 <strong>모든 클라이언트에게 동시에 보낼 때</strong> 씁니다. 이 게임에서는 지금 클라이언트가 하나지만, 나중에 확장할 때 필요합니다.</div>
+    </div>
+    <pre><code><span class="c-cm">// 연결된 모든 클라이언트에게 보내기</span>
+<span class="c-var">wss</span>.clients.<span class="c-fn">forEach</span>(<span class="c-var">client</span> => {
+    <span class="c-kw">if</span> (<span class="c-var">client</span>.readyState === <span class="c-var">WebSocket</span>.OPEN) {
+        <span class="c-var">client</span>.<span class="c-fn">send</span>(JSON.<span class="c-fn">stringify</span>({ type: <span class="c-str">'broadcast'</span>, msg: <span class="c-str">'모두에게!'</span> }));
+    }
+});
+
+<span class="c-cm">// 자신(ws) 제외하고 나머지에게만 (채팅 중계 패턴)</span>
+<span class="c-var">wss</span>.clients.<span class="c-fn">forEach</span>(<span class="c-var">client</span> => {
+    <span class="c-kw">if</span> (<span class="c-var">client</span> !== <span class="c-var">ws</span> && <span class="c-var">client</span>.readyState === <span class="c-var">WebSocket</span>.OPEN) {
+        <span class="c-var">client</span>.<span class="c-fn">send</span>(JSON.<span class="c-fn">stringify</span>({ type: <span class="c-str">'broadcast'</span>, msg: <span class="c-str">'나 빼고!'</span> }));
+    }
+});
+
+<span class="c-cm">// 안전한 message 핸들러 전체 패턴</span>
+<span class="c-var">ws</span>.<span class="c-fn">on</span>(<span class="c-str">'message'</span>, (<span class="c-var">data</span>) => {
+    <span class="c-kw">try</span> {
+        <span class="c-kw">const</span> <span class="c-var">msg</span> = JSON.<span class="c-fn">parse</span>(<span class="c-var">data</span>.<span class="c-fn">toString</span>());  <span class="c-cm">// .toString() 필수!</span>
+        <span class="c-fn">handleMessage</span>(<span class="c-var">ws</span>, <span class="c-var">msg</span>);
+    } <span class="c-kw">catch</span> (<span class="c-var">e</span>) {
+        console.<span class="c-fn">error</span>(<span class="c-str">'JSON 파싱 실패:'</span>, <span class="c-var">e</span>.message);
+        <span class="c-var">ws</span>.<span class="c-fn">send</span>(JSON.<span class="c-fn">stringify</span>({ type: <span class="c-str">'error'</span>, msg: <span class="c-str">'잘못된 메시지 형식'</span> }));
+    }
+});</code></pre>
+  </div>
+
+</div>
+
+<!-- ════════════════ ④ Python 클라이언트 ════════════════ -->
+<div id="client" class="panel">
+
+  <div class="section">
+    <div class="section-label">websocket-client 설치</div>
+    <div class="hero">
+      <div class="hero-label">Python WebSocket Client</div>
+      <div class="hero-title">websocket-client — Python에서 WebSocket 연결</div>
+      <div class="hero-desc">Python에서 WebSocket 서버에 접속하는 라이브러리입니다. 이벤트 콜백 방식으로 동작해서 Node.js의 <span class="inline-code">.on('message')</span>와 구조가 비슷합니다.</div>
+    </div>
+    <pre><code>pip install websocket-client</code></pre>
+  </div>
+
+  <div class="section">
+    <div class="section-label">기본 클라이언트 코드</div>
+    <pre><code><span class="c-kw">import</span> websocket
+<span class="c-kw">import</span> json
+<span class="c-kw">import</span> threading
+
+<span class="c-kw">def</span> <span class="c-fn">on_open</span>(<span class="c-var">ws</span>):
+    <span class="c-cm"># 연결됐을 때 — 서버에 첫 메시지 보내기</span>
+    <span class="c-var">ws</span>.<span class="c-fn">send</span>(json.<span class="c-fn">dumps</span>({ <span class="c-str">"type"</span>: <span class="c-str">"hello"</span>, <span class="c-str">"msg"</span>: <span class="c-str">"안녕!"</span> }))
+
+<span class="c-kw">def</span> <span class="c-fn">on_message</span>(<span class="c-var">ws</span>, <span class="c-var">message</span>):
+    <span class="c-cm"># 서버로부터 메시지 받았을 때</span>
+    <span class="c-var">data</span> = json.<span class="c-fn">loads</span>(<span class="c-var">message</span>)
+    <span class="c-fn">print</span>(<span class="c-str">"받음:"</span>, <span class="c-var">data</span>)
+
+<span class="c-kw">def</span> <span class="c-fn">on_error</span>(<span class="c-var">ws</span>, <span class="c-var">error</span>):
+    <span class="c-fn">print</span>(<span class="c-str">"에러:"</span>, <span class="c-var">error</span>)
+
+<span class="c-kw">def</span> <span class="c-fn">on_close</span>(<span class="c-var">ws</span>, <span class="c-var">code</span>, <span class="c-var">msg</span>):
+    <span class="c-fn">print</span>(<span class="c-str">"연결 종료"</span>)
+
+<span class="c-var">ws</span> = websocket.<span class="c-fn">WebSocketApp</span>(
+    <span class="c-str">"ws://localhost:3000"</span>,
+    on_open    = <span class="c-var">on_open</span>,
+    on_message = <span class="c-var">on_message</span>,
+    on_error   = <span class="c-var">on_error</span>,
+    on_close   = <span class="c-var">on_close</span>
+)
+
+<span class="c-cm"># run_forever() — 연결을 유지하며 이벤트를 기다림</span>
+<span class="c-cm"># 별도 스레드에서 실행해야 PyQt6 UI가 멈추지 않음!</span>
+<span class="c-var">thread</span> = threading.<span class="c-fn">Thread</span>(target=<span class="c-var">ws</span>.run_forever)
+<span class="c-var">thread</span>.daemon = <span class="c-kw">True</span>
+<span class="c-var">thread</span>.<span class="c-fn">start</span>()</code></pre>
+
+    <div class="warn"><strong>중요 — 스레드 분리 필수:</strong> <span class="inline-code">ws.run_forever()</span>는 블로킹 함수입니다. PyQt6 메인 스레드에서 그냥 실행하면 UI가 완전히 멈춥니다. 반드시 <span class="inline-code">threading.Thread</span>로 별도 스레드에서 실행하세요.</div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">PyQt6와 통합하는 방법</div>
+    <pre><code><span class="c-kw">from</span> PyQt6.QtCore <span class="c-kw">import</span> QObject, pyqtSignal
+<span class="c-kw">import</span> websocket, json, threading
+
+<span class="c-kw">class</span> <span class="c-fn">WSClient</span>(QObject):
+    <span class="c-cm"># 시그널: WebSocket 스레드 → Qt 메인 스레드로 안전하게 전달</span>
+    message_received = <span class="c-fn">pyqtSignal</span>(dict)
+    connected        = <span class="c-fn">pyqtSignal</span>()
+    disconnected     = <span class="c-fn">pyqtSignal</span>()
+
+    <span class="c-kw">def</span> <span class="c-fn">__init__</span>(<span class="c-var">self</span>):
+        <span class="c-fn">super</span>().<span class="c-fn">__init__</span>()
+        <span class="c-var">self</span>.<span class="c-var">_ws</span> = <span class="c-kw">None</span>
+
+    <span class="c-kw">def</span> <span class="c-fn">connect</span>(<span class="c-var">self</span>, <span class="c-var">url</span>: str):
+        <span class="c-var">self</span>.<span class="c-var">_ws</span> = websocket.<span class="c-fn">WebSocketApp</span>(
+            <span class="c-var">url</span>,
+            on_open    = <span class="c-kw">lambda</span> <span class="c-var">ws</span>:        <span class="c-var">self</span>.connected.<span class="c-fn">emit</span>(),
+            on_message = <span class="c-kw">lambda</span> <span class="c-var">ws</span>, <span class="c-var">m</span>:   <span class="c-var">self</span>.message_received.<span class="c-fn">emit</span>(json.<span class="c-fn">loads</span>(<span class="c-var">m</span>)),
+            on_close   = <span class="c-kw">lambda</span> <span class="c-var">ws</span>, <span class="c-var">c</span>, <span class="c-var">m</span>: <span class="c-var">self</span>.disconnected.<span class="c-fn">emit</span>(),
+        )
+        <span class="c-var">t</span> = threading.<span class="c-fn">Thread</span>(target=<span class="c-var">self</span>.<span class="c-var">_ws</span>.run_forever)
+        <span class="c-var">t</span>.daemon = <span class="c-kw">True</span>
+        <span class="c-var">t</span>.<span class="c-fn">start</span>()
+
+    <span class="c-kw">def</span> <span class="c-fn">send</span>(<span class="c-var">self</span>, <span class="c-var">data</span>: dict):
+        <span class="c-kw">if</span> <span class="c-var">self</span>.<span class="c-var">_ws</span>:
+            <span class="c-var">self</span>.<span class="c-var">_ws</span>.<span class="c-fn">send</span>(json.<span class="c-fn">dumps</span>(<span class="c-var">data</span>))
+
+<span class="c-cm"># 사용</span>
+<span class="c-var">client</span> = <span class="c-fn">WSClient</span>()
+<span class="c-var">client</span>.message_received.<span class="c-fn">connect</span>(<span class="c-kw">lambda</span> <span class="c-var">data</span>: <span class="c-fn">print</span>(<span class="c-str">"서버에서:"</span>, <span class="c-var">data</span>))
+<span class="c-var">client</span>.<span class="c-fn">connect</span>(<span class="c-str">"ws://localhost:3000"</span>)</code></pre>
+
+    <div class="tip"><strong>pyqtSignal이 핵심:</strong> WebSocket 콜백은 별도 스레드에서 실행됩니다. Qt UI를 다른 스레드에서 직접 건드리면 크래시가 납니다. Signal을 통하면 Qt가 자동으로 메인 스레드로 전달해줍니다.</div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">자동 재연결 & 앱 종료 처리</div>
+    <pre><code><span class="c-cm"># run_forever에 reconnect 옵션 — 끊기면 N초 후 자동 재연결</span>
+<span class="c-var">t</span> = threading.<span class="c-fn">Thread</span>(
+    target=<span class="c-var">self</span>.<span class="c-var">_ws</span>.run_forever,
+    kwargs={ <span class="c-str">"reconnect"</span>: <span class="c-num">5</span> }  <span class="c-cm"># 5초 후 재연결 시도</span>
+)
+<span class="c-var">t</span>.daemon = <span class="c-kw">True</span>
+<span class="c-var">t</span>.<span class="c-fn">start</span>()
+
+<span class="c-cm"># 앱 종료 시 WebSocket 정리 — main.py의 QApplication 종료 전에 호출</span>
+<span class="c-kw">import</span> atexit
+
+<span class="c-kw">def</span> <span class="c-fn">cleanup</span>():
+    <span class="c-kw">if</span> <span class="c-var">ws_client</span>.<span class="c-var">_ws</span>:
+        <span class="c-var">ws_client</span>.<span class="c-var">_ws</span>.<span class="c-fn">close</span>()
+
+atexit.<span class="c-fn">register</span>(<span class="c-var">cleanup</span>)</code></pre>
+    <div class="tip"><strong>reconnect=5 동작:</strong> 서버가 꺼져있거나 네트워크가 끊겨도 5초마다 재연결을 시도합니다. on_open 콜백이 재연결 성공 시 다시 호출되므로 거기서 초기화 로직을 처리하면 됩니다.</div>
+  </div>
+
+</div>
+
+<!-- ════════════════ ⑤ 메시지 설계 ════════════════ -->
+<div id="message" class="panel">
+
+  <div class="section">
+    <div class="section-label">메시지 포맷</div>
+    <div class="hero">
+      <div class="hero-label">Message Design</div>
+      <div class="hero-title">JSON + type 필드로 모든 메시지를 구분한다</div>
+      <div class="hero-desc">WebSocket은 그냥 문자열을 보냅니다. 어떤 종류의 메시지인지 구분하려면 <strong style="color:var(--text)">포맷을 직접 정해야 합니다.</strong> 가장 많이 쓰이는 방법은 JSON에 <span class="inline-code">type</span> 필드를 넣는 것입니다.</div>
+    </div>
+
+    <pre><code><span class="c-cm">// 좋은 예 — type 필드로 종류 구분</span>
+{ <span class="c-str">"type"</span>: <span class="c-str">"chat"</span>,   <span class="c-str">"msg"</span>: <span class="c-str">"안녕하세요"</span>, <span class="c-str">"from"</span>: <span class="c-str">"player"</span> }
+{ <span class="c-str">"type"</span>: <span class="c-str">"score"</span>,  <span class="c-str">"value"</span>: <span class="c-num">95</span>, <span class="c-str">"char_id"</span>: <span class="c-num">0</span> }
+{ <span class="c-str">"type"</span>: <span class="c-str">"ping"</span> }
+{ <span class="c-str">"type"</span>: <span class="c-str">"error"</span>,  <span class="c-str">"code"</span>: <span class="c-str">"NOT_FOUND"</span> }</code></pre>
+
+    <div class="warn"><strong>항상 JSON.stringify / json.dumps:</strong> WebSocket.send()는 문자열만 받습니다. 객체를 그냥 보내면 "[object Object]"가 됩니다. 반드시 JSON으로 직렬화하세요.</div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">서버에서 type별로 분기 처리</div>
+    <pre><code><span class="c-cm">// Node.js 서버</span>
+<span class="c-var">ws</span>.<span class="c-fn">on</span>(<span class="c-str">'message'</span>, (<span class="c-var">raw</span>) => {
+    <span class="c-kw">const</span> <span class="c-var">msg</span> = JSON.<span class="c-fn">parse</span>(<span class="c-var">raw</span>);
+
+    <span class="c-kw">switch</span> (<span class="c-var">msg</span>.type) {
+        <span class="c-kw">case</span> <span class="c-str">'chat'</span>:
+            <span class="c-fn">handleChat</span>(<span class="c-var">ws</span>, <span class="c-var">msg</span>);
+            <span class="c-kw">break</span>;
+        <span class="c-kw">case</span> <span class="c-str">'score'</span>:
+            <span class="c-fn">handleScore</span>(<span class="c-var">ws</span>, <span class="c-var">msg</span>);
+            <span class="c-kw">break</span>;
+        <span class="c-kw">case</span> <span class="c-str">'ping'</span>:
+            <span class="c-var">ws</span>.<span class="c-fn">send</span>(JSON.<span class="c-fn">stringify</span>({ type: <span class="c-str">'pong'</span> }));
+            <span class="c-kw">break</span>;
+        <span class="c-kw">default</span>:
+            console.<span class="c-fn">warn</span>(<span class="c-str">'알 수 없는 타입:'</span>, <span class="c-var">msg</span>.type);
+    }
+});</code></pre>
+
+    <pre><code><span class="c-cm"># Python 클라이언트에서도 같은 방식</span>
+<span class="c-kw">def</span> <span class="c-fn">on_message</span>(<span class="c-var">ws</span>, <span class="c-var">raw</span>):
+    <span class="c-var">msg</span> = json.<span class="c-fn">loads</span>(<span class="c-var">raw</span>)
+    <span class="c-var">handlers</span> = {
+        <span class="c-str">'reply'</span> : <span class="c-var">handle_reply</span>,
+        <span class="c-str">'score'</span> : <span class="c-var">handle_score</span>,
+        <span class="c-str">'pong'</span>  : <span class="c-kw">lambda</span> <span class="c-var">m</span>: <span class="c-kw">None</span>,
+    }
+    <span class="c-var">handler</span> = <span class="c-var">handlers</span>.<span class="c-fn">get</span>(<span class="c-var">msg</span>[<span class="c-str">'type'</span>])
+    <span class="c-kw">if</span> <span class="c-var">handler</span>:
+        <span class="c-fn">handler</span>(<span class="c-var">msg</span>)</code></pre>
+  </div>
+
+  <div class="section">
+    <div class="section-label">이 게임에서 쓸 수 있는 메시지 예시</div>
+    <div class="card card-blue">
+      <div class="card-title">Python → 서버</div>
+      <div class="card-desc">
+        <span class="inline-code">{"type": "chat", "char_id": 0, "msg": "17시에 어디 계셨나요?"}</span><br>
+        캐릭터에게 대화 전송<br><br>
+        <span class="inline-code">{"type": "accusation", "char_id": 0}</span><br>
+        특정 선생님을 범인으로 지목<br><br>
+        <span class="inline-code">{"type": "ping"}</span><br>
+        서버 연결 상태 확인
+      </div>
+    </div>
+    <div class="card card-teal">
+      <div class="card-title">서버 → Python</div>
+      <div class="card-desc">
+        <span class="inline-code">{"type": "reply", "char_id": 0, "msg": "...", "score_delta": -5}</span><br>
+        캐릭터 응답 + 호감도 변화<br><br>
+        <span class="inline-code">{"type": "result", "correct": true}</span><br>
+        범인 지목 결과<br><br>
+        <span class="inline-code">{"type": "pong"}</span><br>
+        ping에 대한 응답
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════════════ ⑥ 게임서버 구조 ════════════════ -->
+<div id="gameserver" class="panel">
+
+  <div class="section">
+    <div class="section-label">게임서버란</div>
+    <div class="hero">
+      <div class="hero-label">Game Server Architecture</div>
+      <div class="hero-title">게임 로직을 클라이언트가 아닌 서버에서 처리한다</div>
+      <div class="hero-desc">
+        현재 이 게임은 모든 로직(캐릭터 응답, 점수 계산)이 Python 안에 있습니다.<br>
+        서버를 도입하면 <strong style="color:var(--text)">로직이 서버에 있고 클라이언트는 화면만</strong> 담당합니다.<br>
+        나중에 멀티플레이나 AI 응답 등을 추가하기 훨씬 쉬워집니다.
+      </div>
+    </div>
+
+    <div class="compare">
+      <div class="compare-card compare-http">
+        <div class="compare-label">현재 (로직이 클라이언트에)</div>
+        <div class="compare-item"><div class="compare-dot"></div>캐릭터 응답이 config.py에 하드코딩</div>
+        <div class="compare-item"><div class="compare-dot"></div>점수 계산이 Python 안에서 실행</div>
+        <div class="compare-item"><div class="compare-dot"></div>치팅 가능, 저장/불러오기 어려움</div>
+        <div class="compare-item"><div class="compare-dot"></div>멀티플레이 불가</div>
+      </div>
+      <div class="compare-card compare-ws">
+        <div class="compare-label">서버 도입 후</div>
+        <div class="compare-item"><div class="compare-dot"></div>캐릭터 응답 로직이 Node.js에</div>
+        <div class="compare-item"><div class="compare-dot"></div>점수, 게임 상태가 서버에서 관리</div>
+        <div class="compare-item"><div class="compare-dot"></div>데이터베이스 연동 가능</div>
+        <div class="compare-item"><div class="compare-dot"></div>AI API 연동 등 확장 쉬움</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">서버에서 게임 상태 관리하기</div>
+    <pre><code><span class="c-cm">// Node.js — 게임 상태를 메모리에서 관리</span>
+<span class="c-kw">const</span> <span class="c-var">gameState</span> = {
+    scores:    { <span class="c-num">0</span>: <span class="c-num">50</span>, <span class="c-num">1</span>: <span class="c-num">50</span>, <span class="c-num">2</span>: <span class="c-num">50</span>, <span class="c-num">3</span>: <span class="c-num">50</span> },  <span class="c-cm">// 캐릭터별 호감도</span>
+    respIndex: { <span class="c-num">0</span>: <span class="c-num">0</span>,  <span class="c-num">1</span>: <span class="c-num">0</span>,  <span class="c-num">2</span>: <span class="c-num">0</span>,  <span class="c-num">3</span>: <span class="c-num">0</span>  },  <span class="c-cm">// 대화 인덱스</span>
+    solved:    <span class="c-kw">false</span>,
+};
+
+<span class="c-kw">function</span> <span class="c-fn">handleChat</span>(<span class="c-var">ws</span>, <span class="c-var">msg</span>) {
+    <span class="c-kw">const</span> <span class="c-var">id</span>    = <span class="c-var">msg</span>.char_id;
+    <span class="c-kw">const</span> <span class="c-var">idx</span>   = <span class="c-var">gameState</span>.respIndex[<span class="c-var">id</span>];
+    <span class="c-kw">const</span> <span class="c-var">chars</span> = <span class="c-fn">require</span>(<span class="c-str">'./chars.js'</span>);  <span class="c-cm">// config.py에 있던 데이터</span>
+    <span class="c-kw">const</span> [<span class="c-var">reply</span>, <span class="c-var">delta</span>] = <span class="c-var">chars</span>[<span class="c-var">id</span>].responses[<span class="c-var">idx</span>];
+
+    <span class="c-var">gameState</span>.scores[<span class="c-var">id</span>]    += <span class="c-var">delta</span>;
+    <span class="c-var">gameState</span>.respIndex[<span class="c-var">id</span>]  = (<span class="c-var">idx</span> + <span class="c-num">1</span>) % <span class="c-var">chars</span>[<span class="c-var">id</span>].responses.length;
+
+    <span class="c-var">ws</span>.<span class="c-fn">send</span>(JSON.<span class="c-fn">stringify</span>({
+        type:        <span class="c-str">'reply'</span>,
+        char_id:     <span class="c-var">id</span>,
+        msg:         <span class="c-var">reply</span>,
+        score_delta: <span class="c-var">delta</span>,
+        score:       <span class="c-var">gameState</span>.scores[<span class="c-var">id</span>],
+    }));
+}</code></pre>
+  </div>
+
+  <div class="section">
+    <div class="section-label">ping / pong — 연결 상태 확인</div>
+    <div class="card card-amber">
+      <div class="card-title">왜 ping/pong이 필요한가?</div>
+      <div class="card-desc">
+        네트워크가 갑자기 끊겨도 소켓은 그 사실을 바로 모릅니다.
+        주기적으로 <strong>ping을 보내고 pong이 오지 않으면</strong> 연결이 끊긴 것으로 판단합니다.
+      </div>
+    </div>
+    <pre><code><span class="c-cm"># Python — 10초마다 ping 보내기</span>
+<span class="c-kw">import</span> threading
+
+<span class="c-kw">def</span> <span class="c-fn">keep_alive</span>(<span class="c-var">ws</span>):
+    <span class="c-kw">while</span> <span class="c-kw">True</span>:
+        threading.<span class="c-fn">Event</span>().<span class="c-fn">wait</span>(<span class="c-num">10</span>)
+        <span class="c-var">ws</span>.<span class="c-fn">send</span>(json.<span class="c-fn">dumps</span>({ <span class="c-str">"type"</span>: <span class="c-str">"ping"</span> }))
+
+<span class="c-cm"># on_open에서 시작</span>
+<span class="c-kw">def</span> <span class="c-fn">on_open</span>(<span class="c-var">ws</span>):
+    <span class="c-var">t</span> = threading.<span class="c-fn">Thread</span>(target=<span class="c-var">keep_alive</span>, args=(<span class="c-var">ws</span>,))
+    <span class="c-var">t</span>.daemon = <span class="c-kw">True</span>
+    <span class="c-var">t</span>.<span class="c-fn">start</span>()</code></pre>
+  </div>
+
+</div>
+
+<!-- ════════════════ ⑦ 이 프로젝트에 적용 ════════════════ -->
+<div id="apply" class="panel">
+
+  <div class="section">
+    <div class="section-label">적용 로드맵</div>
+    <div class="hero">
+      <div class="hero-label">This Project</div>
+      <div class="hero-title">단계별로 WebSocket을 붙여가는 순서</div>
+      <div class="hero-desc">한 번에 다 바꾸려 하지 말고, 작동하는 상태를 유지하면서 조금씩 이전합니다.</div>
+    </div>
+
+    <div class="flow">
+      <div class="flow-row">
+        <div class="flow-left">
+          <div class="flow-num">1</div>
+          <div class="flow-line"></div>
+        </div>
+        <div class="flow-body">
+          <div class="flow-title">pygame-server에 ws 설치 및 기본 서버 작성</div>
+          <div class="flow-desc"><span class="inline-code">npm install ws</span> 후 <span class="inline-code">app.js</span>에 WebSocket 서버 추가. ping/pong만 동작하는 것부터 확인.</div>
+          <div class="flow-code">pygame-server/app.js에 wss 추가</div>
+        </div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-left">
+          <div class="flow-num">2</div>
+          <div class="flow-line"></div>
+        </div>
+        <div class="flow-body">
+          <div class="flow-title">Python에서 연결 테스트</div>
+          <div class="flow-desc">별도 test_ws.py를 만들어서 서버 연결, 메시지 송수신을 확인. 게임 코드에 붙이기 전에 먼저 단독 테스트.</div>
+          <div class="flow-code">python test_ws.py → 서버 로그 확인</div>
+        </div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-left">
+          <div class="flow-num">3</div>
+          <div class="flow-line"></div>
+        </div>
+        <div class="flow-body">
+          <div class="flow-title">WSClient 클래스를 main.py에 통합</div>
+          <div class="flow-desc">④탭의 WSClient를 만들어서 MainWindow에 붙이기. 채팅 화면에서 send 호출.</div>
+          <div class="flow-code">ChatScreen.send() → ws_client.send({"type":"chat",...})</div>
+        </div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-left">
+          <div class="flow-num">4</div>
+          <div class="flow-line"></div>
+        </div>
+        <div class="flow-body">
+          <div class="flow-title">서버에서 캐릭터 응답 처리</div>
+          <div class="flow-desc">config.py의 CHARS 데이터를 Node.js 파일로 옮기고, 서버가 응답을 결정해서 Python에 보냄.</div>
+          <div class="flow-code">chars.js 작성 → handleChat() 구현</div>
+        </div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-left">
+          <div class="flow-num">5</div>
+        </div>
+        <div class="flow-body">
+          <div class="flow-title">점수/상태를 서버에서 관리</div>
+          <div class="flow-desc">affection, resp_idx 등을 서버 메모리에서 관리. Python은 화면 표시만 담당.</div>
+          <div class="flow-code">gameState 객체로 전체 게임 상태 중앙화</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">첫 번째로 만들어볼 코드</div>
+    <div class="card card-teal">
+      <div class="card-title">pygame-server/ws.js — 최소 WebSocket 서버</div>
+    </div>
+    <pre><code><span class="c-kw">const</span> { <span class="c-var">WebSocketServer</span> } = <span class="c-fn">require</span>(<span class="c-str">'ws'</span>);
+<span class="c-kw">const</span> <span class="c-var">wss</span> = <span class="c-kw">new</span> <span class="c-fn">WebSocketServer</span>({ port: <span class="c-num">3001</span> });
+
+<span class="c-var">wss</span>.<span class="c-fn">on</span>(<span class="c-str">'connection'</span>, (<span class="c-var">ws</span>) => {
+    console.<span class="c-fn">log</span>(<span class="c-str">'Python 연결됨'</span>);
+    <span class="c-var">ws</span>.<span class="c-fn">send</span>(JSON.<span class="c-fn">stringify</span>({ type: <span class="c-str">'welcome'</span>, msg: <span class="c-str">'서버 연결 성공!'</span> }));
+
+    <span class="c-var">ws</span>.<span class="c-fn">on</span>(<span class="c-str">'message'</span>, (<span class="c-var">raw</span>) => {
+        <span class="c-kw">const</span> <span class="c-var">msg</span> = JSON.<span class="c-fn">parse</span>(<span class="c-var">raw</span>);
+        <span class="c-kw">if</span> (<span class="c-var">msg</span>.type === <span class="c-str">'ping'</span>) {
+            <span class="c-var">ws</span>.<span class="c-fn">send</span>(JSON.<span class="c-fn">stringify</span>({ type: <span class="c-str">'pong'</span> }));
+        }
+        console.<span class="c-fn">log</span>(<span class="c-str">'받음:'</span>, <span class="c-var">msg</span>);
+    });
+});
+console.<span class="c-fn">log</span>(<span class="c-str">'ws://localhost:3001'</span>);</code></pre>
+
+    <div class="card card-blue">
+      <div class="card-title">test_ws.py — Python 연결 테스트</div>
+    </div>
+    <pre><code><span class="c-kw">import</span> websocket, json
+
+<span class="c-kw">def</span> <span class="c-fn">on_open</span>(<span class="c-var">ws</span>):
+    <span class="c-fn">print</span>(<span class="c-str">"연결됨!"</span>)
+    <span class="c-var">ws</span>.<span class="c-fn">send</span>(json.<span class="c-fn">dumps</span>({ <span class="c-str">"type"</span>: <span class="c-str">"ping"</span> }))
+
+<span class="c-kw">def</span> <span class="c-fn">on_message</span>(<span class="c-var">ws</span>, <span class="c-var">raw</span>):
+    <span class="c-fn">print</span>(<span class="c-str">"서버:"</span>, json.<span class="c-fn">loads</span>(<span class="c-var">raw</span>))
+    <span class="c-var">ws</span>.<span class="c-fn">close</span>()
+
+websocket.<span class="c-fn">WebSocketApp</span>(
+    <span class="c-str">"ws://localhost:3001"</span>,
+    on_open    = <span class="c-var">on_open</span>,
+    on_message = <span class="c-var">on_message</span>,
+).<span class="c-fn">run_forever</span>()</code></pre>
+
+    <div class="tip"><strong>순서:</strong> 먼저 <span class="inline-code">node ws.js</span>로 서버 실행 → 그 다음 <span class="inline-code">py -3.12 test_ws.py</span>로 클라이언트 실행. 서버 로그에 "Python 연결됨"이 뜨면 성공입니다.</div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">막힐 때 체크리스트</div>
+    <div class="step-list">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text"><strong>서버가 먼저 켜져 있는가?</strong> 클라이언트보다 서버를 먼저 실행해야 합니다.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text"><strong>포트가 일치하는가?</strong> 서버 <span class="inline-code">port: 3001</span>과 클라이언트 <span class="inline-code">ws://localhost:3001</span>이 같아야 합니다.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text"><strong>JSON 직렬화했는가?</strong> <span class="inline-code">JSON.stringify()</span> / <span class="inline-code">json.dumps()</span> 없이 보내면 깨집니다.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-text"><strong>스레드 분리했는가?</strong> PyQt6에서 <span class="inline-code">run_forever()</span>를 메인 스레드에서 실행하면 UI가 멈춥니다.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-text"><strong>방화벽 허용됐는가?</strong> Windows 방화벽이 포트를 막고 있을 수 있습니다. localhost는 보통 괜찮습니다.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════════════ ⑧ 클라이언트 스킬 ════════════════ -->
+<div id="clientskills" class="panel">
+
+  <div class="section">
+    <div class="section-label">로드맵 개요</div>
+    <div class="hero">
+      <div class="hero-label">Game Client Skills A-Z</div>
+      <div class="hero-title">PyQt6로 게임 클라이언트를 만들 때 필요한 모든 것</div>
+      <div class="hero-desc">
+        화면 구성부터 실시간 통신까지, 이 게임을 직접 만들거나 확장하려면 아래 스킬들이 필요합니다.<br>
+        순서대로 익히되, 막히면 다음으로 넘어가고 나중에 돌아오는 방식을 권장합니다.
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="card card-blue">
+        <div class="card-title">🧱 UI 구성</div>
+        <div class="card-desc">위젯, 레이아웃, 스택 화면 전환, 스타일시트로 화면을 만드는 기술</div>
+      </div>
+      <div class="card card-teal">
+        <div class="card-title">⚡ 이벤트 & 시그널</div>
+        <div class="card-desc">Signal/Slot, 키·마우스 이벤트, QTimer로 반응형 앱을 만드는 기술</div>
+      </div>
+      <div class="card card-amber">
+        <div class="card-title">🧵 스레드 & 비동기</div>
+        <div class="card-desc">UI가 멈추지 않게 백그라운드 작업을 분리하는 기술</div>
+      </div>
+      <div class="card card-purple">
+        <div class="card-title">🎮 게임 패턴</div>
+        <div class="card-desc">상태 관리, 화면 전환, 데이터 흐름 설계 패턴</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">① 위젯 — 화면의 모든 요소</div>
+    <div class="card card-blue">
+      <div class="card-title">자주 쓰는 위젯 한눈에 보기</div>
+      <div class="card-desc">
+        <span class="inline-code">QLabel</span> — 텍스트/이미지 표시<br>
+        <span class="inline-code">QPushButton</span> — 클릭 버튼<br>
+        <span class="inline-code">QLineEdit</span> — 한 줄 입력창<br>
+        <span class="inline-code">QTextEdit</span> — 여러 줄 입력/표시<br>
+        <span class="inline-code">QScrollArea</span> — 스크롤 가능한 영역<br>
+        <span class="inline-code">QWidget</span> — 모든 위젯의 기본 클래스, 커스텀 UI의 베이스
+      </div>
+    </div>
+    <pre><code><span class="c-kw">from</span> PyQt6.QtWidgets <span class="c-kw">import</span> QWidget, QLabel, QPushButton, QLineEdit
+
+<span class="c-cm"># 기본 위젯 생성</span>
+<span class="c-var">label</span>  = <span class="c-fn">QLabel</span>(<span class="c-str">"안녕하세요"</span>)
+<span class="c-var">button</span> = <span class="c-fn">QPushButton</span>(<span class="c-str">"전송"</span>)
+<span class="c-var">input_</span> = <span class="c-fn">QLineEdit</span>()
+<span class="c-var">input_</span>.<span class="c-fn">setPlaceholderText</span>(<span class="c-str">"메시지 입력..."</span>)
+
+<span class="c-cm"># 텍스트 변경</span>
+<span class="c-var">label</span>.<span class="c-fn">setText</span>(<span class="c-str">"변경됨"</span>)
+
+<span class="c-cm"># 값 읽기</span>
+<span class="c-var">text</span> = <span class="c-var">input_</span>.<span class="c-fn">text</span>()   <span class="c-cm"># 입력된 텍스트</span>
+<span class="c-var">input_</span>.<span class="c-fn">clear</span>()          <span class="c-cm"># 초기화</span></code></pre>
+  </div>
+
+  <div class="section">
+    <div class="section-label">② 레이아웃 — 위젯 배치</div>
+    <div class="tip"><strong>레이아웃이 핵심:</strong> PyQt6에서 위젯 위치는 직접 숫자로 지정하지 않고 레이아웃이 자동으로 계산합니다. 창 크기가 바뀌어도 알아서 재배치됩니다.</div>
+    <pre><code><span class="c-kw">from</span> PyQt6.QtWidgets <span class="c-kw">import</span> QVBoxLayout, QHBoxLayout, QWidget
+
+<span class="c-var">root</span> = <span class="c-fn">QWidget</span>()
+
+<span class="c-cm"># 세로 배치</span>
+<span class="c-var">vbox</span> = <span class="c-fn">QVBoxLayout</span>(<span class="c-var">root</span>)
+<span class="c-var">vbox</span>.<span class="c-fn">addWidget</span>(<span class="c-var">label</span>)
+<span class="c-var">vbox</span>.<span class="c-fn">addWidget</span>(<span class="c-var">button</span>)
+<span class="c-var">vbox</span>.<span class="c-fn">addStretch</span>()       <span class="c-cm"># 남은 공간을 빈 공간으로 채움</span>
+
+<span class="c-cm"># 가로 배치</span>
+<span class="c-var">hbox</span> = <span class="c-fn">QHBoxLayout</span>()
+<span class="c-var">hbox</span>.<span class="c-fn">addWidget</span>(<span class="c-var">input_</span>)
+<span class="c-var">hbox</span>.<span class="c-fn">addWidget</span>(<span class="c-var">button</span>)
+
+<span class="c-cm"># 레이아웃 안에 레이아웃 넣기 (중첩)</span>
+<span class="c-var">vbox</span>.<span class="c-fn">addLayout</span>(<span class="c-var">hbox</span>)
+
+<span class="c-cm"># 여백/간격 조정</span>
+<span class="c-var">vbox</span>.<span class="c-fn">setContentsMargins</span>(<span class="c-num">0</span>, <span class="c-num">0</span>, <span class="c-num">0</span>, <span class="c-num">0</span>)  <span class="c-cm"># 상하좌우 여백</span>
+<span class="c-var">vbox</span>.<span class="c-fn">setSpacing</span>(<span class="c-num">8</span>)                   <span class="c-cm"># 위젯 간격</span>
+
+<span class="c-cm"># stretch — 공간 비율 지정 (2:1로 나누기)</span>
+<span class="c-var">vbox</span>.<span class="c-fn">addWidget</span>(<span class="c-var">chat_area</span>, stretch=<span class="c-num">2</span>)
+<span class="c-var">vbox</span>.<span class="c-fn">addWidget</span>(<span class="c-var">input_bar</span>, stretch=<span class="c-num">1</span>)</code></pre>
+  </div>
+
+  <div class="section">
+    <div class="section-label">③ 스타일시트 (QSS) — CSS처럼 꾸미기</div>
+    <div class="card card-purple">
+      <div class="card-title">QSS는 CSS와 거의 같습니다</div>
+      <div class="card-desc">선택자 문법이 CSS와 유사하지만, 클래스 선택자 대신 위젯 타입 선택자를 씁니다. <span class="inline-code">border-radius</span>, <span class="inline-code">background-color</span>, <span class="inline-code">color</span>, <span class="inline-code">font-size</span> 등이 그대로 동작합니다.</div>
+    </div>
+    <pre><code><span class="c-cm"># 특정 위젯에 스타일 적용</span>
+<span class="c-var">button</span>.<span class="c-fn">setStyleSheet</span>(<span class="c-str">"""
+    QPushButton {
+        background: #FEE500;
+        color: #191919;
+        border-radius: 18px;
+        padding: 8px 20px;
+        font-size: 13px;
+        font-weight: bold;
+    }
+    QPushButton:hover {
+        background: #FFD600;
+    }
+    QPushButton:pressed {
+        background: #E6CE00;
+    }
+"""</span>)
+
+<span class="c-cm"># 부모 위젯에 적용하면 자식에게도 상속</span>
+<span class="c-var">root</span>.<span class="c-fn">setStyleSheet</span>(<span class="c-str">"background: #B2C7DA; color: #191919;"</span>)
+
+<span class="c-cm"># objectName으로 특정 위젯만 선택 (#id처럼)</span>
+<span class="c-var">label</span>.<span class="c-fn">setObjectName</span>(<span class="c-str">"title"</span>)
+<span class="c-var">root</span>.<span class="c-fn">setStyleSheet</span>(<span class="c-str">"QLabel#title { font-size: 20px; font-weight: 700; }"</span>)</code></pre>
+  </div>
+
+  <div class="section">
+    <div class="section-label">④ Signal & Slot — 이벤트 연결의 핵심</div>
+    <div class="hero">
+      <div class="hero-label">Signal / Slot</div>
+      <div class="hero-title">"버튼 클릭됐을 때 이 함수를 실행해" — PyQt6의 이벤트 시스템</div>
+      <div class="hero-desc">Signal은 "뭔가 일어났다"는 알림이고, Slot은 그 알림을 받아 처리하는 함수입니다. <span class="inline-code">.connect()</span>로 Signal에 Slot을 연결합니다.</div>
+    </div>
+    <pre><code><span class="c-kw">from</span> PyQt6.QtCore <span class="c-kw">import</span> pyqtSignal, QObject
+
+<span class="c-cm"># 내장 시그널 사용 (버튼 클릭)</span>
+<span class="c-var">button</span>.clicked.<span class="c-fn">connect</span>(<span class="c-var">my_function</span>)   <span class="c-cm"># 클릭 → my_function() 호출</span>
+<span class="c-var">input_</span>.returnPressed.<span class="c-fn">connect</span>(<span class="c-var">on_send</span>) <span class="c-cm"># 엔터 → on_send() 호출</span>
+
+<span class="c-cm"># 커스텀 시그널 정의</span>
+<span class="c-kw">class</span> <span class="c-fn">ChatScreen</span>(QWidget):
+    message_sent = <span class="c-fn">pyqtSignal</span>(str)       <span class="c-cm"># str 타입 데이터를 전달하는 시그널</span>
+    score_changed = <span class="c-fn">pyqtSignal</span>(int, int)  <span class="c-cm"># int 두 개 전달 (char_id, delta)</span>
+
+    <span class="c-kw">def</span> <span class="c-fn">_on_send</span>(<span class="c-var">self</span>):
+        <span class="c-var">text</span> = <span class="c-var">self</span>.input.<span class="c-fn">text</span>()
+        <span class="c-var">self</span>.message_sent.<span class="c-fn">emit</span>(<span class="c-var">text</span>)     <span class="c-cm"># 시그널 발생 — 연결된 슬롯 호출됨</span>
+
+<span class="c-cm"># 다른 곳에서 연결</span>
+<span class="c-var">chat</span>.message_sent.<span class="c-fn">connect</span>(<span class="c-kw">lambda</span> <span class="c-var">msg</span>: <span class="c-fn">print</span>(<span class="c-str">"보냄:"</span>, <span class="c-var">msg</span>))
+<span class="c-var">chat</span>.score_changed.<span class="c-fn">connect</span>(<span class="c-var">update_gauge</span>)</code></pre>
+    <div class="tip"><strong>시그널은 타입 안전합니다:</strong> <span class="inline-code">pyqtSignal(str)</span>로 선언하면 str만 emit할 수 있습니다. 이것이 WebSocket 스레드에서 UI 스레드로 데이터를 안전하게 전달하는 방법이기도 합니다.</div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">⑤ QStackedWidget — 화면 전환</div>
+    <pre><code><span class="c-kw">from</span> PyQt6.QtWidgets <span class="c-kw">import</span> QStackedWidget
+
+<span class="c-var">stack</span> = <span class="c-fn">QStackedWidget</span>()
+
+<span class="c-cm"># 화면 추가</span>
+<span class="c-var">stack</span>.<span class="c-fn">addWidget</span>(<span class="c-var">novel_screen</span>)   <span class="c-cm"># index 0</span>
+<span class="c-var">stack</span>.<span class="c-fn">addWidget</span>(<span class="c-var">profile_screen</span>) <span class="c-cm"># index 1</span>
+<span class="c-var">stack</span>.<span class="c-fn">addWidget</span>(<span class="c-var">chat_screen</span>)    <span class="c-cm"># index 2</span>
+
+<span class="c-cm"># 화면 전환 — 두 가지 방법</span>
+<span class="c-var">stack</span>.<span class="c-fn">setCurrentIndex</span>(<span class="c-num">1</span>)               <span class="c-cm"># 인덱스로</span>
+<span class="c-var">stack</span>.<span class="c-fn">setCurrentWidget</span>(<span class="c-var">chat_screen</span>)    <span class="c-cm"># 위젯 객체로 (더 권장)</span>
+
+<span class="c-cm"># 현재 화면 확인</span>
+<span class="c-var">current</span> = <span class="c-var">stack</span>.<span class="c-fn">currentWidget</span>()</code></pre>
+    <div class="tip"><strong>이 게임에서의 활용:</strong> 비주얼 노벨 → 프로필 → 채팅 화면 전환이 모두 QStackedWidget 하나로 관리됩니다. 화면을 숨기는 게 아니라 앞으로 가져오는 방식이라 빠릅니다.</div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">⑥ QTimer — 딜레이와 반복 실행</div>
+    <pre><code><span class="c-kw">from</span> PyQt6.QtCore <span class="c-kw">import</span> QTimer
+
+<span class="c-cm"># 1회 딜레이 실행 (1400ms 후 함수 실행)</span>
+<span class="c-fn">QTimer</span>.<span class="c-fn">singleShot</span>(<span class="c-num">1400</span>, <span class="c-var">self</span>._show_reply)
+
+<span class="c-cm"># 반복 실행 (500ms마다)</span>
+<span class="c-var">timer</span> = <span class="c-fn">QTimer</span>()
+<span class="c-var">timer</span>.timeout.<span class="c-fn">connect</span>(<span class="c-var">self</span>._update)
+<span class="c-var">timer</span>.<span class="c-fn">start</span>(<span class="c-num">500</span>)   <span class="c-cm"># ms 단위</span>
+
+<span class="c-cm"># 멈추기</span>
+<span class="c-var">timer</span>.<span class="c-fn">stop</span>()
+
+<span class="c-cm"># 이미 이 프로젝트 chat.py에서 쓰고 있음 — 캐릭터 답장 딜레이</span>
+<span class="c-fn">QTimer</span>.<span class="c-fn">singleShot</span>(<span class="c-var">REPLY_DELAY</span>, <span class="c-kw">lambda</span>: <span class="c-var">self</span>.<span class="c-fn">_add_msg</span>(<span class="c-var">reply</span>, is_mine=<span class="c-kw">False</span>))</code></pre>
+    <div class="warn"><strong>threading.sleep() 금지:</strong> Qt 메인 스레드에서 <span class="inline-code">time.sleep()</span>을 쓰면 UI가 그 시간 동안 완전히 멈춥니다. 딜레이는 항상 <span class="inline-code">QTimer.singleShot()</span>을 쓰세요.</div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">⑦ 커스텀 위젯 — 직접 그리기</div>
+    <pre><code><span class="c-kw">from</span> PyQt6.QtWidgets <span class="c-kw">import</span> QWidget
+<span class="c-kw">from</span> PyQt6.QtGui     <span class="c-kw">import</span> QPainter, QColor, QPainterPath
+<span class="c-kw">from</span> PyQt6.QtCore    <span class="c-kw">import</span> Qt
+
+<span class="c-kw">class</span> <span class="c-fn">ChatBubble</span>(QWidget):
+    <span class="c-kw">def</span> <span class="c-fn">__init__</span>(<span class="c-var">self</span>, <span class="c-var">text</span>, <span class="c-var">is_mine</span>):
+        <span class="c-fn">super</span>().<span class="c-fn">__init__</span>()
+        <span class="c-var">self</span>.<span class="c-var">text</span>    = <span class="c-var">text</span>
+        <span class="c-var">self</span>.<span class="c-var">is_mine</span> = <span class="c-var">is_mine</span>
+
+    <span class="c-kw">def</span> <span class="c-fn">paintEvent</span>(<span class="c-var">self</span>, <span class="c-var">event</span>):
+        <span class="c-cm"># Qt가 화면을 그릴 때 자동으로 호출</span>
+        <span class="c-var">p</span> = <span class="c-fn">QPainter</span>(<span class="c-var">self</span>)
+        <span class="c-var">p</span>.<span class="c-fn">setRenderHint</span>(<span class="c-var">QPainter</span>.RenderHint.Antialiasing)
+
+        <span class="c-cm"># 말풍선 배경 그리기</span>
+        <span class="c-var">color</span> = <span class="c-fn">QColor</span>(<span class="c-str">"#FEE500"</span>) <span class="c-kw">if</span> <span class="c-var">self</span>.is_mine <span class="c-kw">else</span> <span class="c-fn">QColor</span>(<span class="c-str">"#FFFFFF"</span>)
+        <span class="c-var">p</span>.<span class="c-fn">setBrush</span>(<span class="c-var">color</span>)
+        <span class="c-var">p</span>.<span class="c-fn">setPen</span>(<span class="c-var">Qt</span>.PenStyle.NoPen)
+        <span class="c-var">p</span>.<span class="c-fn">drawRoundedRect</span>(<span class="c-var">self</span>.<span class="c-fn">rect</span>(), <span class="c-num">14</span>, <span class="c-num">14</span>)
+
+<span class="c-cm"># update()를 호출하면 paintEvent가 다시 실행됨</span>
+<span class="c-var">bubble</span>.<span class="c-fn">update</span>()</code></pre>
+  </div>
+
+  <div class="section">
+    <div class="section-label">⑧ 이벤트 오버라이딩 — 키·마우스 처리</div>
+    <pre><code><span class="c-kw">class</span> <span class="c-fn">MyWidget</span>(QWidget):
+
+    <span class="c-kw">def</span> <span class="c-fn">keyPressEvent</span>(<span class="c-var">self</span>, <span class="c-var">event</span>):
+        <span class="c-cm"># 키를 눌렀을 때</span>
+        <span class="c-kw">from</span> PyQt6.QtCore <span class="c-kw">import</span> Qt
+        <span class="c-kw">if</span> <span class="c-var">event</span>.<span class="c-fn">key</span>() == <span class="c-var">Qt</span>.Key.Key_Return:
+            <span class="c-var">self</span>.<span class="c-fn">_on_send</span>()
+        <span class="c-kw">elif</span> <span class="c-var">event</span>.<span class="c-fn">key</span>() == <span class="c-var">Qt</span>.Key.Key_Escape:
+            <span class="c-var">self</span>.<span class="c-fn">go_back</span>()
+
+    <span class="c-kw">def</span> <span class="c-fn">mousePressEvent</span>(<span class="c-var">self</span>, <span class="c-var">event</span>):
+        <span class="c-cm"># 마우스 클릭</span>
+        <span class="c-kw">if</span> <span class="c-var">event</span>.<span class="c-fn">button</span>() == <span class="c-var">Qt</span>.MouseButton.LeftButton:
+            <span class="c-fn">print</span>(<span class="c-str">"클릭 위치:"</span>, <span class="c-var">event</span>.<span class="c-fn">pos</span>())
+
+    <span class="c-kw">def</span> <span class="c-fn">resizeEvent</span>(<span class="c-var">self</span>, <span class="c-var">event</span>):
+        <span class="c-cm"># 창 크기가 바뀔 때 — 이 게임에서 스케일 계산에 활용</span>
+        <span class="c-var">new_size</span> = <span class="c-var">event</span>.<span class="c-fn">size</span>()
+        <span class="c-fn">super</span>().<span class="c-fn">resizeEvent</span>(<span class="c-var">event</span>)  <span class="c-cm"># 부모 메서드도 항상 호출!</span></code></pre>
+    <div class="tip"><strong>super() 호출 규칙:</strong> 이벤트 메서드를 오버라이드할 때 <span class="inline-code">super().xxxEvent(event)</span>를 호출하지 않으면 Qt 내부 기본 동작이 무시됩니다. 특별한 이유가 없으면 항상 super()를 호출하세요.</div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">⑨ QThread — 백그라운드 작업</div>
+    <pre><code><span class="c-kw">from</span> PyQt6.QtCore <span class="c-kw">import</span> QThread, pyqtSignal
+
+<span class="c-kw">class</span> <span class="c-fn">WSWorker</span>(QThread):
+    <span class="c-cm"># 결과를 메인 스레드로 전달하는 시그널</span>
+    received = <span class="c-fn">pyqtSignal</span>(dict)
+
+    <span class="c-kw">def</span> <span class="c-fn">run</span>(<span class="c-var">self</span>):
+        <span class="c-cm"># 이 안에서 실행되는 코드는 별도 스레드에서 돌아감</span>
+        <span class="c-kw">import</span> websocket, json
+
+        <span class="c-kw">def</span> <span class="c-fn">on_msg</span>(<span class="c-var">ws</span>, <span class="c-var">raw</span>):
+            <span class="c-var">self</span>.received.<span class="c-fn">emit</span>(json.<span class="c-fn">loads</span>(<span class="c-var">raw</span>))  <span class="c-cm"># 시그널로 메인에 전달</span>
+
+        <span class="c-var">ws</span> = websocket.<span class="c-fn">WebSocketApp</span>(<span class="c-str">"ws://localhost:3000"</span>, on_message=<span class="c-var">on_msg</span>)
+        <span class="c-var">ws</span>.<span class="c-fn">run_forever</span>()
+
+<span class="c-cm"># 사용</span>
+<span class="c-var">worker</span> = <span class="c-fn">WSWorker</span>()
+<span class="c-var">worker</span>.received.<span class="c-fn">connect</span>(<span class="c-var">self</span>._on_ws_message)
+<span class="c-var">worker</span>.<span class="c-fn">start</span>()   <span class="c-cm"># run() 메서드가 별도 스레드에서 실행됨</span></code></pre>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">threading.Thread 방식</div>
+        <div class="card-desc">Python 표준 라이브러리.<br>간단한 백그라운드 작업에 충분.<br>Qt 시그널을 써야 UI 업데이트 가능.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">QThread 방식</div>
+        <div class="card-desc">Qt 네이티브 스레드.<br>Qt 이벤트 루프와 완벽히 통합.<br>시그널/슬롯이 스레드 경계를 자동 처리.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">⑩ 상태 관리 — 게임 데이터 흐름 설계</div>
+    <div class="card card-amber">
+      <div class="card-title">단일 상태 객체 패턴</div>
+      <div class="card-desc">게임 상태를 한 곳에서 관리하고, 변경이 필요할 때 시그널을 통해 UI를 업데이트합니다. 상태를 여러 위젯이 각자 갖고 있으면 동기화 문제가 생깁니다.</div>
+    </div>
+    <pre><code><span class="c-kw">class</span> <span class="c-fn">GameState</span>:
+    <span class="c-kw">def</span> <span class="c-fn">__init__</span>(<span class="c-var">self</span>):
+        <span class="c-var">self</span>.scores   = [<span class="c-num">50</span>, <span class="c-num">50</span>, <span class="c-num">50</span>, <span class="c-num">50</span>]  <span class="c-cm"># 캐릭터별 호감도</span>
+        <span class="c-var">self</span>.unreads  = [<span class="c-num">0</span>,  <span class="c-num">0</span>,  <span class="c-num">0</span>,  <span class="c-num">0</span>]   <span class="c-cm"># 읽지 않은 메시지 수</span>
+        <span class="c-var">self</span>.solved   = <span class="c-kw">False</span>
+
+    <span class="c-kw">def</span> <span class="c-fn">apply_score</span>(<span class="c-var">self</span>, <span class="c-var">char_id</span>: int, <span class="c-var">delta</span>: int):
+        <span class="c-var">self</span>.scores[<span class="c-var">char_id</span>] = <span class="c-fn">max</span>(<span class="c-num">0</span>, <span class="c-fn">min</span>(<span class="c-num">100</span>, <span class="c-var">self</span>.scores[<span class="c-var">char_id</span>] + <span class="c-var">delta</span>))
+
+<span class="c-cm"># main.py에서 하나만 생성해서 화면들에 전달</span>
+<span class="c-var">state</span> = <span class="c-fn">GameState</span>()
+<span class="c-var">chat_screen</span> = <span class="c-fn">ChatScreen</span>(<span class="c-var">state</span>)</code></pre>
+  </div>
+
+  <div class="section">
+    <div class="section-label">⑪ QScrollArea — 채팅창 자동 스크롤</div>
+    <pre><code><span class="c-kw">from</span> PyQt6.QtWidgets <span class="c-kw">import</span> QScrollArea, QVBoxLayout, QWidget
+<span class="c-kw">from</span> PyQt6.QtCore    <span class="c-kw">import</span> Qt
+
+<span class="c-cm"># 스크롤 가능한 채팅 영역 구성</span>
+<span class="c-var">scroll</span> = <span class="c-fn">QScrollArea</span>()
+<span class="c-var">scroll</span>.<span class="c-fn">setWidgetResizable</span>(<span class="c-kw">True</span>)           <span class="c-cm"># 내용 크기에 맞게 자동 조절</span>
+<span class="c-var">scroll</span>.<span class="c-fn">setHorizontalScrollBarPolicy</span>(<span class="c-var">Qt</span>.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+<span class="c-var">container</span> = <span class="c-fn">QWidget</span>()
+<span class="c-var">layout</span>    = <span class="c-fn">QVBoxLayout</span>(<span class="c-var">container</span>)
+<span class="c-var">scroll</span>.<span class="c-fn">setWidget</span>(<span class="c-var">container</span>)
+
+<span class="c-kw">def</span> <span class="c-fn">add_message</span>(<span class="c-var">widget</span>):
+    <span class="c-var">layout</span>.<span class="c-fn">addWidget</span>(<span class="c-var">widget</span>)
+    <span class="c-cm"># 새 메시지 추가 후 맨 아래로 스크롤</span>
+    <span class="c-fn">QTimer</span>.<span class="c-fn">singleShot</span>(<span class="c-num">50</span>, <span class="c-kw">lambda</span>:
+        <span class="c-var">scroll</span>.verticalScrollBar().<span class="c-fn">setValue</span>(
+            <span class="c-var">scroll</span>.verticalScrollBar().<span class="c-fn">maximum</span>()
+        )
+    )</code></pre>
+    <div class="tip"><strong>singleShot(50) 이유:</strong> 위젯이 레이아웃에 추가된 직후에는 아직 크기 계산이 안 돼있습니다. 50ms 딜레이를 줘야 maximum() 값이 정확합니다.</div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">⑫ 전체 스킬 체크리스트</div>
+    <div class="step-list">
+      <div class="step"><div class="step-num">1</div><div class="step-text"><strong>QWidget + QVBoxLayout/QHBoxLayout</strong> — 화면 구성 기본</div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-text"><strong>setStyleSheet (QSS)</strong> — CSS처럼 스타일 적용</div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-text"><strong>pyqtSignal / .connect()</strong> — 이벤트 연결 시스템</div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-text"><strong>QStackedWidget</strong> — 화면 전환 관리</div></div>
+      <div class="step"><div class="step-num">5</div><div class="step-text"><strong>QTimer.singleShot()</strong> — 딜레이, 애니메이션</div></div>
+      <div class="step"><div class="step-num">6</div><div class="step-text"><strong>paintEvent + QPainter</strong> — 커스텀 위젯 직접 그리기</div></div>
+      <div class="step"><div class="step-num">7</div><div class="step-text"><strong>keyPressEvent / mousePressEvent</strong> — 키·마우스 이벤트</div></div>
+      <div class="step"><div class="step-num">8</div><div class="step-text"><strong>QThread 또는 threading.Thread</strong> — 백그라운드 작업 분리</div></div>
+      <div class="step"><div class="step-num">9</div><div class="step-text"><strong>QScrollArea + 자동 스크롤</strong> — 채팅창 구현</div></div>
+      <div class="step"><div class="step-num">10</div><div class="step-text"><strong>단일 상태 객체 패턴</strong> — 게임 데이터 중앙 관리</div></div>
+      <div class="step"><div class="step-num">11</div><div class="step-text"><strong>websocket-client + 시그널 통합</strong> — 실시간 서버 통신</div></div>
+    </div>
+  </div>
+
+</div>
+<!-- ════════════════ ⑨ 고급 & 디버깅 ════════════════ -->
+<div id="advanced" class="panel">
+
+  <div class="section">
+    <div class="section-label">누락된 PyQt6 스킬 — QFont</div>
+    <div class="card card-blue">
+      <div class="card-title">QFont — 이 프로젝트 utils.py의 F() 함수가 바로 이것</div>
+      <div class="card-desc">폰트 이름, 크기, 굵기를 설정합니다. <span class="inline-code">setFont()</span>로 위젯에 적용하거나 QPainter에서 씁니다.</div>
+    </div>
+    <pre><code><span class="c-kw">from</span> PyQt6.QtGui <span class="c-kw">import</span> QFont
+
+<span class="c-cm"># 기본 생성</span>
+<span class="c-var">font</span> = <span class="c-fn">QFont</span>(<span class="c-str">"맑은 고딕"</span>, <span class="c-num">14</span>)
+<span class="c-var">font</span>.<span class="c-fn">setBold</span>(<span class="c-kw">True</span>)
+<span class="c-var">font</span>.<span class="c-fn">setItalic</span>(<span class="c-kw">True</span>)
+
+<span class="c-cm"># 위젯에 적용</span>
+<span class="c-var">label</span>.<span class="c-fn">setFont</span>(<span class="c-var">font</span>)
+
+<span class="c-cm"># 앱 전체 기본 폰트 설정 (main.py에서)</span>
+<span class="c-var">app</span>.<span class="c-fn">setFont</span>(<span class="c-fn">QFont</span>(<span class="c-str">"맑은 고딕"</span>, <span class="c-num">12</span>))
+
+<span class="c-cm"># utils.py의 F() 함수가 하는 일</span>
+<span class="c-kw">def</span> <span class="c-fn">F</span>(<span class="c-var">size_key</span>: str, <span class="c-var">bold</span>: bool = <span class="c-kw">False</span>) -> QFont:
+    <span class="c-var">f</span> = <span class="c-fn">QFont</span>(<span class="c-str">"맑은 고딕"</span>, FS[<span class="c-var">size_key</span>])
+    <span class="c-var">f</span>.<span class="c-fn">setBold</span>(<span class="c-var">bold</span>)
+    <span class="c-kw">return</span> <span class="c-var">f</span></code></pre>
+  </div>
+
+  <div class="section">
+    <div class="section-label">누락된 PyQt6 스킬 — QColor</div>
+    <pre><code><span class="c-kw">from</span> PyQt6.QtGui <span class="c-kw">import</span> QColor
+
+<span class="c-cm"># 여러 방법으로 색상 생성</span>
+<span class="c-var">c1</span> = <span class="c-fn">QColor</span>(<span class="c-str">"#FEE500"</span>)          <span class="c-cm"># 16진수 문자열</span>
+<span class="c-var">c2</span> = <span class="c-fn">QColor</span>(<span class="c-num">254</span>, <span class="c-num">229</span>, <span class="c-num">0</span>)         <span class="c-cm"># RGB 0~255</span>
+<span class="c-var">c3</span> = <span class="c-fn">QColor</span>(<span class="c-num">254</span>, <span class="c-num">229</span>, <span class="c-num">0</span>, <span class="c-num">128</span>)    <span class="c-cm"># RGBA (마지막이 투명도 0~255)</span>
+
+<span class="c-cm"># 색상 조작</span>
+<span class="c-var">c1</span>.<span class="c-fn">lighter</span>(<span class="c-num">120</span>)   <span class="c-cm"># 20% 밝게</span>
+<span class="c-var">c1</span>.<span class="c-fn">darker</span>(<span class="c-num">120</span>)    <span class="c-cm"># 20% 어둡게</span>
+<span class="c-var">c1</span>.<span class="c-fn">setAlpha</span>(<span class="c-num">100</span>)  <span class="c-cm"># 투명도만 변경</span>
+
+<span class="c-cm"># paintEvent에서 사용</span>
+<span class="c-var">painter</span>.<span class="c-fn">setBrush</span>(<span class="c-fn">QColor</span>(<span class="c-str">"#FEE500"</span>))
+<span class="c-var">painter</span>.<span class="c-fn">setPen</span>(<span class="c-fn">QColor</span>(<span class="c-str">"#191919"</span>))</code></pre>
+  </div>
+
+  <div class="section">
+    <div class="section-label">누락된 PyQt6 스킬 — QGraphicsOpacityEffect (페이드 애니메이션)</div>
+    <div class="card card-teal">
+      <div class="card-title">이 프로젝트 chat.py에서 이미 사용 중인 기능</div>
+      <div class="card-desc">메시지 버블이 나타날 때 서서히 보이는 효과. <span class="inline-code">QPropertyAnimation</span>과 함께 씁니다.</div>
+    </div>
+    <pre><code><span class="c-kw">from</span> PyQt6.QtWidgets <span class="c-kw">import</span> QGraphicsOpacityEffect
+<span class="c-kw">from</span> PyQt6.QtCore    <span class="c-kw">import</span> QPropertyAnimation, QEasingCurve
+
+<span class="c-cm"># 위젯에 투명도 효과 적용</span>
+<span class="c-var">effect</span> = <span class="c-fn">QGraphicsOpacityEffect</span>(<span class="c-var">widget</span>)
+<span class="c-var">widget</span>.<span class="c-fn">setGraphicsEffect</span>(<span class="c-var">effect</span>)
+
+<span class="c-cm"># 페이드인 애니메이션 (0.0 → 1.0 / 300ms)</span>
+<span class="c-var">anim</span> = <span class="c-fn">QPropertyAnimation</span>(<span class="c-var">effect</span>, <span class="c-var">b</span><span class="c-str">"opacity"</span>)
+<span class="c-var">anim</span>.<span class="c-fn">setDuration</span>(<span class="c-num">300</span>)
+<span class="c-var">anim</span>.<span class="c-fn">setStartValue</span>(<span class="c-num">0.0</span>)
+<span class="c-var">anim</span>.<span class="c-fn">setEndValue</span>(<span class="c-num">1.0</span>)
+<span class="c-var">anim</span>.<span class="c-fn">setEasingCurve</span>(<span class="c-var">QEasingCurve</span>.Type.OutCubic)
+<span class="c-var">anim</span>.<span class="c-fn">start</span>()
+
+<span class="c-cm"># 페이드아웃 후 숨기기</span>
+<span class="c-var">anim2</span> = <span class="c-fn">QPropertyAnimation</span>(<span class="c-var">effect</span>, <span class="c-var">b</span><span class="c-str">"opacity"</span>)
+<span class="c-var">anim2</span>.<span class="c-fn">setDuration</span>(<span class="c-num">200</span>)
+<span class="c-var">anim2</span>.<span class="c-fn">setStartValue</span>(<span class="c-num">1.0</span>)
+<span class="c-var">anim2</span>.<span class="c-fn">setEndValue</span>(<span class="c-num">0.0</span>)
+<span class="c-var">anim2</span>.finished.<span class="c-fn">connect</span>(<span class="c-var">widget</span>.hide)
+<span class="c-var">anim2</span>.<span class="c-fn">start</span>()</code></pre>
+    <div class="tip"><strong>b"opacity" 왜 bytes?</strong> QPropertyAnimation은 Qt C++ 내부 시스템을 쓰기 때문에 프로퍼티 이름을 bytes로 전달해야 합니다. Python str이 아닌 b"..." 리터럴을 씁니다.</div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">누락된 PyQt6 스킬 — 크기 정책</div>
+    <pre><code><span class="c-kw">from</span> PyQt6.QtWidgets <span class="c-kw">import</span> QSizePolicy
+<span class="c-kw">from</span> PyQt6.QtCore    <span class="c-kw">import</span> Qt
+
+<span class="c-cm"># 고정 크기 — 레이아웃이 크기를 바꾸지 못하게</span>
+<span class="c-var">widget</span>.<span class="c-fn">setFixedSize</span>(<span class="c-num">420</span>, <span class="c-num">780</span>)   <span class="c-cm"># 너비, 높이 고정</span>
+<span class="c-var">widget</span>.<span class="c-fn">setFixedWidth</span>(<span class="c-num">420</span>)        <span class="c-cm"># 너비만 고정</span>
+<span class="c-var">widget</span>.<span class="c-fn">setFixedHeight</span>(<span class="c-num">56</span>)        <span class="c-cm"># 높이만 고정 (TopBar, NavBar에 사용)</span>
+
+<span class="c-cm"># 크기 정책 — 늘어나는 방식 지정</span>
+<span class="c-var">policy</span> = <span class="c-fn">QSizePolicy</span>(
+    <span class="c-var">QSizePolicy</span>.Policy.Expanding,   <span class="c-cm"># 가로: 최대한 늘어남</span>
+    <span class="c-var">QSizePolicy</span>.Policy.Fixed,        <span class="c-cm"># 세로: 고정</span>
+)
+<span class="c-var">widget</span>.<span class="c-fn">setSizePolicy</span>(<span class="c-var">policy</span>)
+
+<span class="c-cm"># 정렬 (QLabel 텍스트 위치)</span>
+<span class="c-var">label</span>.<span class="c-fn">setAlignment</span>(<span class="c-var">Qt</span>.AlignmentFlag.AlignCenter)          <span class="c-cm"># 가운데</span>
+<span class="c-var">label</span>.<span class="c-fn">setAlignment</span>(<span class="c-var">Qt</span>.AlignmentFlag.AlignRight | <span class="c-var">Qt</span>.AlignmentFlag.AlignVCenter)
+
+<span class="c-cm"># 줄바꿈 허용</span>
+<span class="c-var">label</span>.<span class="c-fn">setWordWrap</span>(<span class="c-kw">True</span>)  <span class="c-cm"># 긴 텍스트 자동 줄바꿈</span></code></pre>
+  </div>
+
+  <div class="section">
+    <div class="section-label">에러 처리 패턴</div>
+    <div class="two-col">
+      <div class="card card-red">
+        <div class="card-title">Node.js — 항상 try/catch</div>
+        <div class="card-desc">JSON.parse 실패, 없는 필드 접근 등으로 서버가 뻗으면 모든 클라이언트가 끊깁니다. 반드시 감싸야 합니다.</div>
+      </div>
+      <div class="card card-red">
+        <div class="card-title">Python — try/except</div>
+        <div class="card-desc">WebSocket 콜백에서 예외가 나면 조용히 무시되거나 연결이 끊깁니다. 에러를 출력해서 파악해야 합니다.</div>
+      </div>
+    </div>
+    <pre><code><span class="c-cm">// Node.js — 서버가 뻗지 않게</span>
+<span class="c-var">ws</span>.<span class="c-fn">on</span>(<span class="c-str">'message'</span>, (<span class="c-var">data</span>) => {
+    <span class="c-kw">try</span> {
+        <span class="c-kw">const</span> <span class="c-var">msg</span> = JSON.<span class="c-fn">parse</span>(<span class="c-var">data</span>.<span class="c-fn">toString</span>());
+        <span class="c-kw">if</span> (!<span class="c-var">msg</span>.type) <span class="c-kw">throw new</span> <span class="c-fn">Error</span>(<span class="c-str">'type 필드 없음'</span>);
+        <span class="c-fn">handleMessage</span>(<span class="c-var">ws</span>, <span class="c-var">msg</span>);
+    } <span class="c-kw">catch</span> (<span class="c-var">err</span>) {
+        console.<span class="c-fn">error</span>(<span class="c-str">'[WS ERROR]'</span>, <span class="c-var">err</span>.message);
+        <span class="c-kw">if</span> (<span class="c-var">ws</span>.readyState === <span class="c-var">WebSocket</span>.OPEN)
+            <span class="c-var">ws</span>.<span class="c-fn">send</span>(JSON.<span class="c-fn">stringify</span>({ type: <span class="c-str">'error'</span>, msg: <span class="c-var">err</span>.message }));
+    }
+});
+
+<span class="c-cm"># Python — 콜백 안에서 예외 잡기</span>
+<span class="c-kw">def</span> <span class="c-fn">on_message</span>(<span class="c-var">ws</span>, <span class="c-var">raw</span>):
+    <span class="c-kw">try</span>:
+        <span class="c-var">data</span> = json.<span class="c-fn">loads</span>(<span class="c-var">raw</span>)
+        <span class="c-fn">handle</span>(<span class="c-var">data</span>)
+    <span class="c-kw">except</span> json.JSONDecodeError:
+        <span class="c-fn">print</span>(<span class="c-str">"[WS] JSON 파싱 실패:", raw</span>)
+    <span class="c-kw">except</span> <span class="c-fn">Exception</span> <span class="c-kw">as</span> <span class="c-var">e</span>:
+        <span class="c-fn">print</span>(<span class="c-str">"[WS] 처리 오류:", e</span>)</code></pre>
+  </div>
+
+  <div class="section">
+    <div class="section-label">디버깅 방법</div>
+
+    <div class="card card-amber">
+      <div class="card-title">Node.js 서버 디버깅</div>
+      <div class="card-desc">
+        <span class="inline-code">console.log('[WS] 받음:', msg)</span> — 모든 수신 메시지 출력<br>
+        nodemon이 있으면 코드 수정 즉시 서버 재시작 → 터미널 로그 확인<br><br>
+        <strong>연결 확인:</strong> <span class="inline-code">console.log('클라이언트 수:', wss.clients.size)</span>
+      </div>
+    </div>
+
+    <div class="card card-blue">
+      <div class="card-title">Python 클라이언트 디버깅</div>
+      <div class="card-desc">
+        <span class="inline-code">websocket.enableTrace(True)</span> — 모든 프레임 레벨 로그 출력 (연결 전에 호출)<br><br>
+        on_error 콜백에서 에러 내용 출력<br>
+        <span class="inline-code">print(ws.sock.connected if ws.sock else False)</span> — 연결 상태 확인
+      </div>
+    </div>
+
+    <pre><code><span class="c-cm"># Python — 상세 WebSocket 로그 활성화</span>
+<span class="c-kw">import</span> websocket
+websocket.<span class="c-fn">enableTrace</span>(<span class="c-kw">True</span>)  <span class="c-cm"># WebSocketApp 생성 전에 호출</span>
+
+<span class="c-cm"># 연결 상태 확인 후 전송 (send 전에 항상 확인)</span>
+<span class="c-kw">def</span> <span class="c-fn">safe_send</span>(<span class="c-var">ws</span>, <span class="c-var">data</span>: dict):
+    <span class="c-kw">if</span> <span class="c-var">ws</span> <span class="c-kw">and</span> <span class="c-var">ws</span>.sock <span class="c-kw">and</span> <span class="c-var">ws</span>.sock.connected:
+        <span class="c-var">ws</span>.<span class="c-fn">send</span>(json.<span class="c-fn">dumps</span>(<span class="c-var">data</span>))
+    <span class="c-kw">else</span>:
+        <span class="c-fn">print</span>(<span class="c-str">"[WS] 연결 없음 — 전송 건너뜀"</span>)</code></pre>
+
+    <div class="card card-purple">
+      <div class="card-title">브라우저 DevTools로 WebSocket 감시</div>
+      <div class="card-desc">
+        크롬 개발자도구 → Network 탭 → WS 필터<br>
+        연결된 WebSocket 클릭 → Messages 탭에서 주고받는 메시지 실시간 확인<br>
+        Python 게임은 브라우저가 아니지만, 서버 테스트용으로 브라우저 콘솔에서<br>
+        <span class="inline-code">const ws = new WebSocket('ws://localhost:3000')</span> 으로 테스트 가능
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">자주 하는 실수 & 해결법</div>
+    <div class="step-list">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text"><strong>JSON.parse(data) → SyntaxError</strong><br>ws v8+에서 data는 Buffer입니다. <span class="inline-code">JSON.parse(data.toString())</span>으로 고치세요.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text"><strong>UI가 완전히 멈춤</strong><br><span class="inline-code">run_forever()</span>를 메인 스레드에서 실행한 겁니다. threading.Thread로 분리하세요.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text"><strong>Qt UI 업데이트가 다른 스레드에서 크래시</strong><br>WebSocket 콜백에서 직접 label.setText() 등 호출 금지. pyqtSignal.emit()으로 전달하세요.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-text"><strong>Connection refused — 서버가 없다</strong><br>Python 클라이언트보다 Node.js 서버를 먼저 실행하세요. 포트 번호도 확인.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-text"><strong>[object Object] 가 전송됨</strong><br>Node.js에서 JSON.stringify() 없이 객체를 send() 한 겁니다.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-text"><strong>send() 했는데 메시지가 안 감</strong><br>연결이 OPEN 상태인지 확인. <span class="inline-code">ws.readyState === WebSocket.OPEN</span> 체크 후 전송하세요.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">7</div>
+        <div class="step-text"><strong>QTimer.singleShot 안에서 변수가 None</strong><br>람다 캡처 문제. <span class="inline-code">lambda r=reply: self._show(r)</span> 처럼 기본값으로 캡처하세요.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">8</div>
+        <div class="step-text"><strong>스크롤이 맨 아래로 안 감</strong><br>위젯 추가 직후 maximum()이 아직 계산 안 됐습니다. QTimer.singleShot(50, scroll_to_bottom)으로 지연하세요.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div><!-- /main -->
+
+<script>
+  function show(id, btn) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    btn.classList.add('active');
+  }
+</script>
+</body>
+</html>
