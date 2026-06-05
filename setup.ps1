@@ -10,7 +10,7 @@ if ($py) {
 }
 
 # ── pip packages ──────────────────────────────────────────
-foreach ($pkg in @("PyQt6", "pygame", "websocket-client")) {
+foreach ($pkg in @("PyQt6", "pygame", "websocket-client", "Pillow")) {
     $installed = py -3.12 -m pip show $pkg 2>$null
     if ($installed) {
         Write-Host "[OK] $pkg already installed"
