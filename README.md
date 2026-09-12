@@ -21,3 +21,7 @@ python pygame-client/main.py
 ## 배운 것
 - 클라이언트–서버 실시간 통신 (WebSocket)
 - pygame 화면 전환·이벤트 처리·UI 위젯 구현
+
+
+---
+Made by [노정원 (njwon)](https://njw.kro.kr)
